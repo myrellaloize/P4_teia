@@ -1,0 +1,296 @@
+import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+const API_URL = "http://127.0.0.1:8000";
+
+const sceneIntro = document.getElementById("scene-intro");
+const sceneStill = document.getElementById("scene-still");
+const flashEl    = document.getElementById("flash");
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let handX = 0, handY = 0;
+let video, detector;
+let gestoAtual = "...";
+let conexoesConcluidas = [];
+let conectar = false;
+let origem = null;
+let escolhido = false;
+let validandoHumano = false;
+
+let palavrasDOM = []; 
+
+// Variáveis para a Fila de Temas
+let temas = [];
+let temaIndex = 0;
+let palavrasNaFila = [];
+const LARGURA_SIDEBAR = 250;
+
+function doFlash(duration, callback) {
+  flashEl.style.transition = `opacity ${duration * 0.001}s ease`;
+  flashEl.style.opacity = "1";
+  setTimeout(() => {
+    flashEl.style.opacity = "0";
+    if (callback) setTimeout(callback, duration);
+  }, duration);
+}
+
+async function runIntro() {
+  await sleep(600);
+  document.getElementById("line1").classList.add("visible");
+  await sleep(1500); 
+  document.getElementById("line2").classList.add("visible");
+  await sleep(1500);
+  document.getElementById("line3").classList.add("visible");
+  await sleep(1500);
+  document.getElementById("line4").classList.add("visible"); 
+  await sleep(2400);
+  
+  sceneIntro.style.transition = "opacity 0.1s";
+  sceneIntro.style.opacity = "0";
+  setTimeout(() => (sceneIntro.style.display = "none"), 200);
+
+  doFlash(180, initSidebar);
+}
+
+// INICIAR A SIDEBAR E A FILA ──
+async function initSidebar() {
+  sceneStill.style.display = "flex";
+  const sidebar = document.getElementById("sidebar");
+  sidebar.innerHTML = ""; 
+
+  try {
+    let res = await fetch(`${API_URL}/palavras`);
+    let data = await res.json();
+    temas = data.temas || [];
+
+    // Carrega o primeiro tema para a fila de espera
+    if (temas.length > 0) {
+      palavrasNaFila = [...temas[0].palavras];
+    }
+
+    // Faz nascer as primeiras 16 palavras na sidebar
+    for (let i = 0; i < 16; i++) {
+      spawnNovaPalavra(null);
+    }
+  } catch (e) {
+    console.error("Erro a ligar ao Python:", e);
+  }
+}
+
+// ── REPOSIÇAO DE PALAV
+function spawnNovaPalavra(referenceNode) {
+  // Se a fila atual acabou, carrega o próximo tema!
+  if (palavrasNaFila.length === 0) {
+    temaIndex++;
+    if (temaIndex < temas.length) {
+      palavrasNaFila = [...temas[temaIndex].palavras];
+    } else {
+      return; // Acabaram todos os temas
+    }
+  }
+
+  if (palavrasNaFila.length > 0) {
+    let p = palavrasNaFila.shift(); // Tira a primeira da fila
+    
+    const el = document.createElement("div");
+    el.className = "sidebar-word";
+    el.textContent = p.texto;
+    el.dataset.id = p.id;
+    el.dataset.naArena = "false";
+    el.dataset.saiu = "false"; // Marca se a palavra já saiu da sidebar alguma vez
+    el.isDragging = false;
+
+    let sidebar = document.getElementById("sidebar");
+    
+    
+    if (referenceNode && referenceNode.parentNode === sidebar) {
+      sidebar.insertBefore(el, referenceNode);
+    } else {
+      sidebar.appendChild(el);
+    }
+    
+    palavrasDOM.push(el);
+    setTimeout(() => el.classList.add("visible"), 50);
+  }
+}
+
+//  COMUNICAÇÃO COM O BACKEND 
+async function pedirLigacoesDaMaquina() {
+  let palavrasAtivas = palavrasDOM.filter(el => el.dataset.naArena === "true").map(el => el.dataset.id);
+
+  if (palavrasAtivas.length < 2) {
+    conexoesConcluidas = conexoesConcluidas.filter(c => c.tipo !== "maquina");
+    return;
+  }
+
+  try {
+    let res = await fetch(`${API_URL}/ligacoes/maquina`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(palavrasAtivas)
+    });
+    
+    let data = await res.json();
+    conexoesConcluidas = conexoesConcluidas.filter(c => c.tipo !== "maquina");
+
+    data.ligacoes.forEach(lig => {
+      let divDe = palavrasDOM.find(p => p.dataset.id === lig.de);
+      let divPara = palavrasDOM.find(p => p.dataset.id === lig.para);
+      
+      if (divDe && divPara) {
+        conexoesConcluidas.push({ de: divDe, para: divPara, tipo: "maquina", cor: [0, 200, 255] });
+      }
+    });
+  } catch (e) {
+    console.error("A máquina falhou:", e);
+  }
+}
+
+async function validarHumano(divOrigem, divDestino) {
+  try {
+    let res = await fetch(`${API_URL}/ligacoes/validar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ palavra1: divOrigem.dataset.id, palavra2: divDestino.dataset.id })
+    });
+    let data = await res.json();
+
+    if (data.valida) {
+      conexoesConcluidas.push({ de: divOrigem, para: divDestino, tipo: "humana", cor: [255, 50, 50] });
+    }
+  } catch (e) {
+    console.error("Erro ao validar:", e);
+  } finally {
+    validandoHumano = false;
+  }
+}
+
+function detectGesture(landmarks) {
+  let indicador = landmarks[8].y < landmarks[6].y;
+  let medio = landmarks[12].y < landmarks[10].y;
+  let anelar = landmarks[16].y < landmarks[14].y;
+  let mindinho = landmarks[20].y < landmarks[18].y;
+
+  if (indicador && medio && anelar && mindinho) return "pega";
+  if (indicador && medio && !anelar && !mindinho) return "mexe";
+  if (indicador && !medio && !anelar && !mindinho) return "escolhe";
+  if (!indicador && !medio && !anelar && !mindinho) return "lock";
+  return "...";
+}
+
+// SETUP & DRAW DO P5 
+window.setup = async function () {
+  let canvas = createCanvas(windowWidth, windowHeight);
+  canvas.parent("canvas-overlay"); 
+  
+  video = createCapture(VIDEO);
+  video.size(windowWidth, windowHeight);
+  video.hide(); 
+
+  const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+  detector = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", delegate: "GPU" },
+    runningMode: "VIDEO", numHands: 1
+  });
+
+  runIntro();
+};
+
+window.draw = function () {
+  clear(); 
+
+  if (detector && video.elt.readyState === 4 && sceneStill.style.display === "flex") {
+    const results = detector.detectForVideo(video.elt, performance.now());
+    
+    if (results.landmarks && results.landmarks.length > 0) {
+      let pontosDaMao = results.landmarks[0];
+      handX = lerp(handX, (1 - pontosDaMao[8].x) * width, 0.3);
+      handY = lerp(handY, pontosDaMao[8].y * height, 0.3);
+      gestoAtual = detectGesture(pontosDaMao);
+
+      let naAreaPrincipal = handX > LARGURA_SIDEBAR;
+
+      palavrasDOM.forEach(el => {
+        let rect = el.getBoundingClientRect();
+        let sobreEste = handX > rect.left && handX < rect.right && handY > rect.top && handY < rect.bottom;
+
+        if (gestoAtual === "escolhe" && sobreEste && !escolhido) {
+          el.isDragging = true;
+          el.classList.add("dragging");
+          escolhido = true;
+        }
+
+        // O MOMENTO EM QUE A PALAVRA É SOLTA
+        if (gestoAtual !== "escolhe" && el.isDragging) {
+          el.isDragging = false;
+          el.classList.remove("dragging");
+          escolhido = false;
+
+          let centroDaPalavra = rect.left + rect.width / 2;
+          let entrouNaArena = centroDaPalavra > LARGURA_SIDEBAR;
+
+          // Se a palavra entrou na Arena pela PRIMEIRA vez
+          if (entrouNaArena && el.dataset.saiu === "false") {
+            el.dataset.saiu = "true";
+            let proximoIrmao = el.nextSibling; // GuardaR o lugar exato
+            spawnNovaPalavra(proximoIrmao);    // Sai a proxima palavra
+          }
+
+          let estavaNaArena = el.dataset.naArena === "true";
+          if (entrouNaArena !== estavaNaArena) {
+            el.dataset.naArena = entrouNaArena ? "true" : "false";
+            pedirLigacoesDaMaquina(); // Avisa o Python
+          }
+        }
+
+        if (el.isDragging) {
+          el.style.position = "fixed";
+          el.style.margin = "0";
+          el.style.left = handX + "px";
+          el.style.top = handY + "px";
+          el.style.transform = "translate(-50%, -50%)"; 
+          conectar = false;
+        }
+
+        if (gestoAtual === "pega" && sobreEste && !conectar && naAreaPrincipal) {
+          conectar = true;
+          origem = el;
+        }
+
+        if (gestoAtual === "lock" && sobreEste && conectar && el !== origem && naAreaPrincipal && !validandoHumano) {
+          validandoHumano = true;
+          validarHumano(origem, el);
+          conectar = false;
+          origem = null;
+        }
+      });
+    }
+  }
+
+  // DESENHAR CONEXÕES
+  for (let c of conexoesConcluidas) {
+    stroke(c.cor[0], c.cor[1], c.cor[2]);
+    strokeWeight(c.tipo === "maquina" ? 1.5 : 3.5);
+    let rectDe = c.de.getBoundingClientRect();
+    let rectPara = c.para.getBoundingClientRect();
+    line(
+      rectDe.left + rectDe.width / 2, rectDe.top + rectDe.height / 2,
+      rectPara.left + rectPara.width / 2, rectPara.top + rectPara.height / 2
+    );
+  }
+
+  if (conectar && origem) {
+    stroke(255, 0, 150);
+    strokeWeight(2);
+    let rectOrigem = origem.getBoundingClientRect();
+    line(
+      rectOrigem.left + rectOrigem.width / 2, rectOrigem.top + rectOrigem.height / 2, 
+      handX, handY
+    );
+  }
+
+  if (sceneStill.style.display === "flex") {
+    noStroke();
+    fill(0, 255, 255);
+    circle(handX, handY, 15);
+  }
+};

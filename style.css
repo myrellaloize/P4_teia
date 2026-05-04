@@ -1,0 +1,157 @@
+html, body {
+  margin: 0;
+  padding: 0;
+}
+canvas {
+  display: block;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  background: #000;
+  color: #fff;
+  font-family: 'Georgia', serif;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  user-select: none;
+}
+
+/* ── Intro ── */
+#scene-intro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  z-index: 10;
+}
+
+.intro-line {
+  font-size: clamp(20px, 20px, 20px);
+  color: #fff;
+  opacity: 0;
+  letter-spacing: 0.01em;
+  text-align: center;
+  padding: 0 2rem;
+  max-width: 600px;
+  line-height: 1.7;
+  transition: opacity 0.8s ease;
+}
+.intro-line.visible {
+  opacity: 1;
+}
+
+/* ── Cena principal ── */
+#scene-still {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: row;
+}
+
+/* ── Sidebar — SEM SCROLL ── */
+#sidebar {
+  width: 25%;
+  min-width: 200px;
+  height: 100vh;
+  border-right: 0.01px solid rgba(255, 255, 255, 0.4);
+
+  /* Distribui as 20 palavras uniformemente pela altura total */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;  /* ← Espaço igual entre slots, sem scroll */
+  padding: 2rem 1rem;
+  overflow: hidden;               /* ← Sem scroll */
+}
+
+/* ── Slots de palavras ── */
+.sidebar-word {
+  font-size: clamp(13px, 1.1vw, 16px);
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  letter-spacing: 0.08em;
+  transition: opacity 0.6s ease, transform 0.6s ease, background 0.3s ease;
+  transform: translateY(10px);
+  white-space: nowrap;
+  padding: 6px 14px;
+  border-radius: 8px;
+  min-height: 1.4em; /* Mantém o espaço mesmo quando vazio */
+}
+
+.sidebar-word.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Alternância esquerda/direita */
+.sidebar-word:nth-child(odd) {
+  align-self: flex-start;
+  margin-left: 8%;
+}
+.sidebar-word:nth-child(even) {
+  align-self: flex-end;
+  margin-right: 8%;
+}
+
+/* Quando está a ser arrastada */
+.sidebar-word.dragging {
+  color: #fff;
+  background: rgba(100, 100, 255, 0.3);
+  box-shadow: 0 0 15px rgba(100, 100, 255, 0.5);
+  transition: none !important;
+  z-index: 200;
+}
+
+/* ── Arena principal ── */
+#main-area {
+  flex: 1;
+  position: relative;
+}
+
+/* ── Label do tema atual ── */
+#tema-label {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  opacity: 0;
+  transition: opacity 1s ease;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+#tema-label.tema-visible {
+  opacity: 1;
+}
+
+/* ── Overlay do canvas P5 ── */
+#canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ── Flash ── */
+#flash {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+}
