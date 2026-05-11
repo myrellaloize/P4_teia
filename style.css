@@ -33,7 +33,7 @@ body {
 }
 
 .intro-line {
-  font-size: clamp(20px, 20px, 20px);
+  font-size: 20px;
   color: #fff;
   opacity: 0;
   letter-spacing: 0.01em;
@@ -52,90 +52,66 @@ body {
   position: absolute;
   inset: 0;
   display: none;
-  flex-direction: row;
+  flex-direction: column; /* Agora as áreas ficam uma em cima da outra */
 }
 
-/* ── Sidebar — SEM SCROLL ── */
+/* ── Arena principal (Topo) ── */
+#main-area {
+  flex: 1; /* Ocupa todo o espaço restante no topo */
+  position: relative;
+  width: 100%;
+}
+
+/* ── Dicionário (Base) ── */
 #sidebar {
-  width: 25%;
-  min-width: 200px;
-  height: 100vh;
-  border-right: 0.01px solid rgba(255, 255, 255, 0.4);
-
-  /* Distribui as 20 palavras uniformemente pela altura total */
+  width: 100%;
+  height: 25vh; /* Ocupa 25% da altura da tela */
+  min-height: 150px;
+  
+  /* LINHA QUE SEPARA A ARENA DO DICIONÁRIO */
+  border-top: 1px solid rgba(255, 255, 255, 0.4); 
+  
+  background: rgba(10, 10, 10, 0.9);
   display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;  /* ← Espaço igual entre slots, sem scroll */
-  padding: 2rem 1rem;
-  overflow: hidden;               /* ← Sem scroll */
+  flex-direction: row; /* Palavras lado a lado */
+  flex-wrap: wrap;     /* Quebra de linha se necessário */
+  justify-content: center;
+  align-content: flex-start;
+  gap: 1rem 2rem;
+  padding: 1.5rem;
+  overflow: hidden;
 }
 
-/* ── Slots de palavras ── */
+/* ── Estética das Palavras no Dicionário ── */
 .sidebar-word {
-  font-size: clamp(13px, 1.1vw, 16px);
-  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(14px, 1.2vw, 18px);
+  color: rgba(255, 255, 255, 0.8);
   opacity: 0;
-  letter-spacing: 0.08em;
-  transition: opacity 0.6s ease, transform 0.6s ease, background 0.3s ease;
+  letter-spacing: 0.05em;
+  transition: opacity 0.6s ease, transform 0.6s ease;
   transform: translateY(10px);
   white-space: nowrap;
-  padding: 6px 14px;
-  border-radius: 8px;
-  min-height: 1.4em; /* Mantém o espaço mesmo quando vazio */
+  padding: 5px 10px;
+  cursor: pointer;
 }
+
+
+
 
 .sidebar-word.visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Alternância esquerda/direita */
-.sidebar-word:nth-child(odd) {
-  align-self: flex-start;
-  margin-left: 8%;
-}
-.sidebar-word:nth-child(even) {
-  align-self: flex-end;
-  margin-right: 8%;
-}
-
-/* Quando está a ser arrastada */
 .sidebar-word.dragging {
   color: #fff;
   background: rgba(100, 100, 255, 0.3);
   box-shadow: 0 0 15px rgba(100, 100, 255, 0.5);
-  transition: none !important;
+  border-radius: 4px;
   z-index: 200;
 }
 
-/* ── Arena principal ── */
-#main-area {
-  flex: 1;
-  position: relative;
-}
-
-/* ── Label do tema atual ── */
-#tema-label {
-  position: absolute;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.25);
-  opacity: 0;
-  transition: opacity 1s ease;
-  pointer-events: none;
-  white-space: nowrap;
-  z-index: 5;
-}
-
-#tema-label.tema-visible {
-  opacity: 1;
-}
-
-/* ── Overlay do canvas P5 ── */
 #canvas-overlay {
   position: absolute;
   top: 0;
@@ -146,7 +122,6 @@ body {
   z-index: 100;
 }
 
-/* ── Flash ── */
 #flash {
   position: fixed;
   inset: 0;
