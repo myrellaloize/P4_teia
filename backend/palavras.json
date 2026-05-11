@@ -21,7 +21,7 @@
         {"id": "rapariga", "texto": "rapariga"}, {"id": "menina", "texto": "menina"},
         {"id": "moca", "texto": "moça"}, {"id": "garota", "texto": "garota"},
         {"id": "guria", "texto": "guria"}, {"id": "miuda", "texto": "miúda"},
-        {"id": "jovem", "texto": "jovem"}, {"id": "gaja", "texto": "gaja"},
+        {"id": "gaja", "texto": "gaja"},
         {"id": "mocoila", "texto": "moçoila"}, {"id": "donzela", "texto": "donzela"}, 
         {"id": "senhorita", "texto": "senhorita"}, {"id": "concubina", "texto": "concubina"},
         {"id": "amante", "texto": "amante"}, {"id": "meretriz", "texto": "meretriz"},
@@ -32,10 +32,15 @@
       "id": "transporte",
       "nome": "Transporte Coletivo",
       "palavras": [
-        {"id": "onibus", "texto": "ônibus"}, {"id": "autocarro", "texto": "autocarro"}, {"id": "machimbombo", "texto": "machimbombo"}, {"id": "chapa", "texto": "chapa"},
-        {"id": "topic", "texto": "topic"}, {"id": "coletivo", "texto": "coletivo"}, {"id": "camioneta", "texto": "camioneta"}, {"id": "busao", "texto": "busão"},
-        {"id": "van", "texto": "van"}, {"id": "besta", "texto": "besta"}, {"id": "kombi", "texto": "kombi"}, {"id": "lotacao", "texto": "lotação"},
-        {"id": "candongueiro", "texto": "candongueiro"}, {"id": "carrinha", "texto": "carrinha"}, {"id": "microonibus", "texto": "micro-ônibus"}, {"id": "bumba", "texto": "bumba"}
+        {"id": "onibus", "texto": "ônibus"}, {"id": "autocarro", "texto": "autocarro"}, 
+        {"id": "machimbombo", "texto": "machimbombo"}, {"id": "chapa", "texto": "chapa"},
+        {"id": "topic", "texto": "topic"}, {"id": "coletivo", "texto": "coletivo"},
+         {"id": "camioneta", "texto": "camioneta"}, {"id": "busao", "texto": "busão"},
+        {"id": "van", "texto": "van"}, {"id": "besta", "texto": "besta"},
+        {"id": "kombi", "texto": "kombi"}, {"id": "lotacao", "texto": "lotação"},
+        {"id": "candongueiro", "texto": "candongueiro"}, 
+        {"id": "carrinha", "texto": "carrinha"}, {"id": "microonibus", "texto": "micro-ônibus"}, 
+        {"id": "bumba", "texto": "bumba"}
       ]
     },
     {
