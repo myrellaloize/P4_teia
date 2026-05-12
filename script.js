@@ -22,7 +22,9 @@ let palavrasDOM = [];
 let temas = [];
 let temaIndex = 0;
 let palavrasNaFila = [];
-const LARGURA_SIDEBAR = 250;
+
+// NOVA LÓGICA DE LIMITE: Em vez da largura, usamos a altura da Arena
+let ALTURA_ARENA;
 
 function doFlash(duration, callback) {
   flashEl.style.transition = `opacity ${duration * 0.001}s ease`;
@@ -51,7 +53,7 @@ async function runIntro() {
   doFlash(180, initSidebar);
 }
 
-// INICIAR A SIDEBAR E A FILA ──
+// INICIAR O DICIONÁRIO E A FILA ──
 async function initSidebar() {
   sceneStill.style.display = "flex";
   const sidebar = document.getElementById("sidebar");
@@ -62,12 +64,10 @@ async function initSidebar() {
     let data = await res.json();
     temas = data.temas || [];
 
-    // Carrega o primeiro tema para a fila de espera
     if (temas.length > 0) {
       palavrasNaFila = [...temas[0].palavras];
     }
 
-    // Faz nascer as primeiras 16 palavras na sidebar
     for (let i = 0; i < 16; i++) {
       spawnNovaPalavra(null);
     }
@@ -76,31 +76,29 @@ async function initSidebar() {
   }
 }
 
-// ── REPOSIÇAO DE PALAV
+// ── REPOSIÇÃO DE PALAVRAS ──
 function spawnNovaPalavra(referenceNode) {
-  // Se a fila atual acabou, carrega o próximo tema!
   if (palavrasNaFila.length === 0) {
     temaIndex++;
     if (temaIndex < temas.length) {
       palavrasNaFila = [...temas[temaIndex].palavras];
     } else {
-      return; // Acabaram todos os temas
+      return; 
     }
   }
 
   if (palavrasNaFila.length > 0) {
-    let p = palavrasNaFila.shift(); // Tira a primeira da fila
+    let p = palavrasNaFila.shift(); 
     
     const el = document.createElement("div");
     el.className = "sidebar-word";
     el.textContent = p.texto;
     el.dataset.id = p.id;
     el.dataset.naArena = "false";
-    el.dataset.saiu = "false"; // Marca se a palavra já saiu da sidebar alguma vez
+    el.dataset.saiu = "false"; 
     el.isDragging = false;
 
     let sidebar = document.getElementById("sidebar");
-    
     
     if (referenceNode && referenceNode.parentNode === sidebar) {
       sidebar.insertBefore(el, referenceNode);
@@ -113,7 +111,7 @@ function spawnNovaPalavra(referenceNode) {
   }
 }
 
-//  COMUNICAÇÃO COM O BACKEND 
+// ── COMUNICAÇÃO COM O BACKEND ── 
 async function pedirLigacoesDaMaquina() {
   let palavrasAtivas = palavrasDOM.filter(el => el.dataset.naArena === "true").map(el => el.dataset.id);
 
@@ -170,53 +168,48 @@ function detectGesture(landmarks) {
   let anelar = landmarks[16].y < landmarks[14].y;
   let mindinho = landmarks[20].y < landmarks[18].y;
 
-  if (indicador && medio && !anelar && !mindinho) return "conecta";
+  if (indicador && medio && anelar && mindinho) return "pega";
+  if (indicador && medio && !anelar && !mindinho) return "mexe";
   if (indicador && !medio && !anelar && !mindinho) return "escolhe";
-  if (indicador && medio && anelar && mindinho) return "lock";
+  if (!indicador && !medio && !anelar && !mindinho) return "lock";
   return "...";
 }
 
-// ── NOVA FUNÇÃO: FÍSICA E REPULSÃO DE PALAVRAS ──
+// ── FÍSICA E REPULSÃO DE PALAVRAS (ATUALIZADA PARA LIMITES Y) ──
 function organizarPalavrasNaArena() {
-  // Filtramos apenas as que estão soltas na arena
   let ativas = palavrasDOM.filter(el => el.dataset.naArena === "true" && !el.isDragging);
 
   for (let i = 0; i < ativas.length; i++) {
     let el1 = ativas[i];
     
-    // Se ainda não tiverem as coordenadas X e Y puras guardadas, extraímos do CSS
     if (el1.x === undefined) {
       el1.x = parseFloat(el1.style.left) || windowWidth / 2;
-      el1.y = parseFloat(el1.style.top) || windowHeight / 2;
+      el1.y = parseFloat(el1.style.top) || ALTURA_ARENA / 2;
     }
 
     for (let j = i + 1; j < ativas.length; j++) {
       let el2 = ativas[j];
       if (el2.x === undefined) {
         el2.x = parseFloat(el2.style.left) || windowWidth / 2;
-        el2.y = parseFloat(el2.style.top) || windowHeight / 2;
+        el2.y = parseFloat(el2.style.top) || ALTURA_ARENA / 2;
       }
 
       let dx = el2.x - el1.x;
       let dy = el2.y - el1.y;
 
-      // Proteção: Se forem largadas exatamente no mesmo pixel perfeito
       if (dx === 0 && dy === 0) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; }
 
       let absDx = Math.abs(dx);
       let absDy = Math.abs(dy);
 
-      // Distância mínima para não se tocarem (+20px de margem respirável)
       let minDx = (el1.offsetWidth + el2.offsetWidth) / 2 + 20;
       let minDy = (el1.offsetHeight + el2.offsetHeight) / 2 + 20;
 
-      // Colisão detetada! As caixas estão sobrepostas
       if (absDx < minDx && absDy < minDy) {
         let overlapX = minDx - absDx;
         let overlapY = minDy - absDy;
-        let forca = 0.1; // Velocidade do "escorregar" para o lado
+        let forca = 0.1; 
 
-        // Empurramos no eixo que precisar de menos movimento para descolar
         if (overlapX < overlapY) {
           let direcao = dx > 0 ? 1 : -1;
           el1.x -= overlapX * forca * direcao;
@@ -229,16 +222,15 @@ function organizarPalavrasNaArena() {
       }
     }
 
-    // Proteger para que não saiam do ecrã nem voltem sem querer para a Sidebar
+    // Proteger para que não saiam do ecrã nem voltem para o Dicionário em baixo
     let margemW = el1.offsetWidth / 2;
     let margemH = el1.offsetHeight / 2;
 
-    if (el1.x < LARGURA_SIDEBAR + margemW + 30) el1.x = LARGURA_SIDEBAR + margemW + 30;
-    if (el1.x > windowWidth - margemW - 20) el1.x = windowWidth - margemW - 20;
-    if (el1.y < margemH + 20) el1.y = margemH + 20;
-    if (el1.y > windowHeight - margemH - 20) el1.y = windowHeight - margemH - 20;
+    if (el1.x < margemW + 20) el1.x = margemW + 20; // Limite esquerdo
+    if (el1.x > windowWidth - margemW - 20) el1.x = windowWidth - margemW - 20; // Limite direito
+    if (el1.y < margemH + 20) el1.y = margemH + 20; // Limite superior
+    if (el1.y > ALTURA_ARENA - margemH - 20) el1.y = ALTURA_ARENA - margemH - 20; // Limite inferior (não desce para o dicionário)
 
-    // Aplicar fisicamente os cálculos ao HTML
     el1.style.left = el1.x + "px";
     el1.style.top = el1.y + "px";
   }
@@ -259,13 +251,19 @@ window.setup = async function () {
     runningMode: "VIDEO", numHands: 1
   });
 
+  // A Arena termina aos 75% da altura da tela (onde o dicionário começa)
+  ALTURA_ARENA = windowHeight * 0.75;
   runIntro();
+};
+
+window.windowResized = function() {
+  resizeCanvas(windowWidth, windowHeight);
+  ALTURA_ARENA = windowHeight * 0.75;
 };
 
 window.draw = function () {
   clear(); 
 
-  // Chama a nossa nova função de física para organizar o espaço!
   if (sceneStill.style.display === "flex") {
     organizarPalavrasNaArena();
   }
@@ -279,20 +277,20 @@ window.draw = function () {
       handY = lerp(handY, pontosDaMao[8].y * height, 0.3);
       gestoAtual = detectGesture(pontosDaMao);
 
-      let naAreaPrincipal = handX > LARGURA_SIDEBAR;
+      // NOVO: Verifica se a mão está na zona de cima (Y < Altura Arena)
+      let naAreaPrincipal = handY < ALTURA_ARENA;
       let sobreQualquerPalavra = false;
 
       palavrasDOM.forEach(el => {
         let rect = el.getBoundingClientRect();
         let sobreEste = handX > rect.left && handX < rect.right && handY > rect.top && handY < rect.bottom;
-        
-        // Regista se a mão está sobre alguma palavra para o cancelamento funcionar
+        let palavraEstaNaArena = el.dataset.naArena === "true"; // NOVO: Garante se a palavra já saiu
+
         if (sobreEste) {
           sobreQualquerPalavra = true; 
         }
 
         let jaConectada = conexoesConcluidas.some(c => c.de === el || c.para === el);
-
 
         if (gestoAtual === "escolhe" && sobreEste && !escolhido && !jaConectada) {
           el.isDragging = true;
@@ -300,31 +298,28 @@ window.draw = function () {
           escolhido = true;
         }
 
-        // O MOMENTO EM QUE A PALAVRA É SOLTA
         if (gestoAtual !== "escolhe" && el.isDragging) {
           el.isDragging = false;
           el.classList.remove("dragging");
           escolhido = false;
 
-          let centroDaPalavra = rect.left + rect.width / 2;
-          let entrouNaArena = centroDaPalavra > LARGURA_SIDEBAR;
+          // NOVO: Verifica se o centro da palavra foi solto ACIMA do dicionário
+          let centroYDaPalavra = rect.top + rect.height / 2;
+          let entrouNaArena = centroYDaPalavra < ALTURA_ARENA;
 
-          // Se a palavra entrou na Arena pela PRIMEIRA vez
           if (entrouNaArena && el.dataset.saiu === "false") {
             el.dataset.saiu = "true";
-            let proximoIrmao = el.nextSibling; // GuardaR o lugar exato
-            spawnNovaPalavra(proximoIrmao);    // Sai a proxima palavra
+            let proximoIrmao = el.nextSibling; 
+            spawnNovaPalavra(proximoIrmao);    
           }
 
-          let estavaNaArena = el.dataset.naArena === "true";
-          if (entrouNaArena !== estavaNaArena) {
+          if (entrouNaArena !== palavraEstaNaArena) {
             el.dataset.naArena = entrouNaArena ? "true" : "false";
-            pedirLigacoesDaMaquina(); // Avisa o Python
+            pedirLigacoesDaMaquina(); 
           }
         }
 
         if (el.isDragging) {
-          // Atualiza as nossas coordenadas para a física não "esquecer" de onde a mão deixou
           el.x = handX;
           el.y = handY;
           el.style.position = "fixed";
@@ -335,12 +330,13 @@ window.draw = function () {
           conectar = false;
         }
 
-        if (gestoAtual === "conecta" && sobreEste && !conectar && naAreaPrincipal) {
+        // NOVO: As conexões SÓ ACONTECEM se `palavraEstaNaArena` for true!
+        if (gestoAtual === "pega" && sobreEste && !conectar && palavraEstaNaArena) {
           conectar = true;
           origem = el;
         }
 
-        if (gestoAtual === "lock" && sobreEste && conectar && el !== origem && naAreaPrincipal && !validandoHumano) {
+        if (gestoAtual === "lock" && sobreEste && conectar && el !== origem && palavraEstaNaArena && !validandoHumano) {
           validandoHumano = true;
           validarHumano(origem, el);
           conectar = false;
@@ -348,7 +344,7 @@ window.draw = function () {
         }
       });
 
-      if (conectar && gestoAtual !== "conecta" && !sobreQualquerPalavra) {
+      if (conectar && gestoAtual !== "pega" && !sobreQualquerPalavra) {
         conectar = false;
         origem = null;
        }

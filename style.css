@@ -98,6 +98,13 @@ body {
 
 
 
+.sidebar-word[data-na-arena="true"] {
+  background: rgba(1, 2, 61, 0.95); /* Fundo escuro e opaco para dar contraste */
+  border-radius: 1px; /* Cantos ligeiramente arredondados */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8); /* Sombra para destacar a palavra do fundo da arena */
+  padding: 8px 16px; /* Um pouco mais de espaço interno para respirar */
+  z-index: 110;
+}
 
 .sidebar-word.visible {
   opacity: 1;
