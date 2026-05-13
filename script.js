@@ -277,14 +277,14 @@ window.draw = function () {
       handY = lerp(handY, pontosDaMao[8].y * height, 0.3);
       gestoAtual = detectGesture(pontosDaMao);
 
-      // NOVO: Verifica se a mão está na zona de cima (Y < Altura Arena)
+      // Verifica se a mão está na zona de cima (Y < Altura Arena)
       let naAreaPrincipal = handY < ALTURA_ARENA;
       let sobreQualquerPalavra = false;
 
       palavrasDOM.forEach(el => {
         let rect = el.getBoundingClientRect();
         let sobreEste = handX > rect.left && handX < rect.right && handY > rect.top && handY < rect.bottom;
-        let palavraEstaNaArena = el.dataset.naArena === "true"; // NOVO: Garante se a palavra já saiu
+        let palavraEstaNaArena = el.dataset.naArena === "true";
 
         if (sobreEste) {
           sobreQualquerPalavra = true; 
@@ -298,27 +298,44 @@ window.draw = function () {
           escolhido = true;
         }
 
+        // ── O MOMENTO EM QUE A PALAVRA É SOLTA ──
         if (gestoAtual !== "escolhe" && el.isDragging) {
           el.isDragging = false;
           el.classList.remove("dragging");
           escolhido = false;
 
-          // NOVO: Verifica se o centro da palavra foi solto ACIMA do dicionário
+          // CORREÇÃO AQUI: Verifica se o eixo Y da palavra está acima da linha do dicionário
           let centroYDaPalavra = rect.top + rect.height / 2;
-          let entrouNaArena = centroYDaPalavra < ALTURA_ARENA;
+          let soltaNaArena = centroYDaPalavra < ALTURA_ARENA;
 
-          if (entrouNaArena && el.dataset.saiu === "false") {
-            el.dataset.saiu = "true";
-            let proximoIrmao = el.nextSibling; 
-            spawnNovaPalavra(proximoIrmao);    
-          }
+          // CASO 1: Nunca saiu e foi solta DENTRO da barra (Cancelou a ação)
+          if (!soltaNaArena && el.dataset.saiu === "false") {
+            el.style.position = "";
+            el.style.left = "";
+            el.style.top = "";
+            el.style.margin = "";
+            el.style.transform = "";
+            delete el.x;
+            delete el.y;
+          } 
+          // CASO 2: Entrou na arena (ou já estava lá)
+          else {
+            if (soltaNaArena && el.dataset.saiu === "false") {
+              el.dataset.saiu = "true";
+              let proximoIrmao = el.nextSibling; 
+              
+              document.getElementById("main-area").appendChild(el); 
+              spawnNovaPalavra(proximoIrmao);    
+            }
 
-          if (entrouNaArena !== palavraEstaNaArena) {
-            el.dataset.naArena = entrouNaArena ? "true" : "false";
-            pedirLigacoesDaMaquina(); 
+            if (soltaNaArena !== palavraEstaNaArena) {
+              el.dataset.naArena = soltaNaArena ? "true" : "false";
+              pedirLigacoesDaMaquina(); 
+            }
           }
         }
 
+        // ── O MOMENTO DO ARRASTO ──
         if (el.isDragging) {
           el.x = handX;
           el.y = handY;
@@ -330,7 +347,7 @@ window.draw = function () {
           conectar = false;
         }
 
-        // NOVO: As conexões SÓ ACONTECEM se `palavraEstaNaArena` for true!
+        // ── LIGAÇÕES MANUAIS ──
         if (gestoAtual === "pega" && sobreEste && !conectar && palavraEstaNaArena) {
           conectar = true;
           origem = el;
@@ -344,10 +361,11 @@ window.draw = function () {
         }
       });
 
+      // Cancela a linha se a mão largar no vazio
       if (conectar && gestoAtual !== "pega" && !sobreQualquerPalavra) {
         conectar = false;
         origem = null;
-       }
+      }
     }
   }
 
