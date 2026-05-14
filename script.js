@@ -184,22 +184,32 @@ async function validarHumano(divOrigem, divDestino) {
 }
 
 
+// Função auxiliar matemática para calcular a distância entre dois pontos (2D)
+function calcularDistancia(p1, p2) {
+  return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+}
+
 function detectGesture(landmarks) {
-  let indicador = landmarks[8].y < landmarks[6].y;
-  let medio = landmarks[12].y < landmarks[10].y;
-  let anelar = landmarks[16].y < landmarks[14].y;
-  let mindinho = landmarks[20].y < landmarks[18].y;
+  let pulso = landmarks[0];
 
+  let indicador = calcularDistancia(landmarks[8], pulso) > calcularDistancia(landmarks[6], pulso);
+  let medio     = calcularDistancia(landmarks[12], pulso) > calcularDistancia(landmarks[10], pulso);
+  let anelar    = calcularDistancia(landmarks[16], pulso) > calcularDistancia(landmarks[14], pulso);
+  let mindinho  = calcularDistancia(landmarks[20], pulso) > calcularDistancia(landmarks[18], pulso);
 
+  // ✌🏾 Dois dedos para INICIAR a linha (Indicador e Médio esticados)
   if (indicador && medio && !anelar && !mindinho) return "conecta";
+  
+  // ☝🏾 Um dedo para ARRASTAR (Apenas Indicador esticado)
   if (indicador && !medio && !anelar && !mindinho) return "escolhe";
+  
+  // ✋🏾 Mão aberta para TRANCAR a conexão (Todos os dedos esticados)
   if (indicador && medio && anelar && mindinho) return "lock";
+
   return "...";
- 
 }
 
 
-// ── FÍSICA E REPULSÃO DE PALAVRAS (ATUALIZADA PARA LIMITES Y) ──
 function organizarPalavrasNaArena() {
   let ativas = palavrasDOM.filter(el => el.dataset.naArena === "true" && !el.isDragging);
 
@@ -255,15 +265,15 @@ function organizarPalavrasNaArena() {
     }
 
 
-    // Proteger para que não saiam do ecrã nem voltem para o Dicionário em baixo
+    
     let margemW = el1.offsetWidth / 2;
     let margemH = el1.offsetHeight / 2;
 
 
-    if (el1.x < margemW + 20) el1.x = margemW + 20; // Limite esquerdo
-    if (el1.x > windowWidth - margemW - 20) el1.x = windowWidth - margemW - 20; // Limite direito
-    if (el1.y < margemH + 20) el1.y = margemH + 20; // Limite superior
-    if (el1.y > ALTURA_ARENA - margemH - 20) el1.y = ALTURA_ARENA - margemH - 20; // Limite inferior (não desce para o dicionário)
+    if (el1.x < margemW + 20) el1.x = margemW + 20; 
+    if (el1.x > windowWidth - margemW - 20) el1.x = windowWidth - margemW - 20; 
+    if (el1.y < margemH + 20) el1.y = margemH + 20; 
+    if (el1.y > ALTURA_ARENA - margemH - 20) el1.y = ALTURA_ARENA - margemH - 20; 
 
 
     el1.style.left = el1.x + "px";
@@ -272,7 +282,7 @@ function organizarPalavrasNaArena() {
 }
 
 
-// SETUP & DRAW DO P5
+
 window.setup = async function () {
   let canvas = createCanvas(windowWidth, windowHeight);
   canvas.parent("canvas-overlay");
@@ -289,7 +299,7 @@ window.setup = async function () {
   });
 
 
-  // A Arena termina aos 75% da altura da tela (onde o dicionário começa)
+  
   ALTURA_ARENA = windowHeight * 0.75;
   runIntro();
 };
@@ -320,7 +330,7 @@ window.draw = function () {
       gestoAtual = detectGesture(pontosDaMao);
 
 
-      // Verifica se a mão está na zona de cima (Y < Altura Arena)
+      
       let naAreaPrincipal = handY < ALTURA_ARENA;
       let sobreQualquerPalavra = false;
 
@@ -346,19 +356,19 @@ window.draw = function () {
         }
 
 
-        // ── O MOMENTO EM QUE A PALAVRA É SOLTA ──
+        
         if (gestoAtual !== "escolhe" && el.isDragging) {
           el.isDragging = false;
           el.classList.remove("dragging");
           escolhido = false;
 
 
-          // CORREÇÃO AQUI: Verifica se o eixo Y da palavra está acima da linha do dicionário
+          
           let centroYDaPalavra = rect.top + rect.height / 2;
           let soltaNaArena = centroYDaPalavra < ALTURA_ARENA;
 
 
-          // CASO 1: Nunca saiu e foi solta DENTRO da barra (Cancelou a ação)
+         
           if (!soltaNaArena && el.dataset.saiu === "false") {
             el.style.position = "";
             el.style.left = "";
@@ -368,7 +378,7 @@ window.draw = function () {
             delete el.x;
             delete el.y;
           }
-          // CASO 2: Entrou na arena (ou já estava lá)
+       
           else {
             if (soltaNaArena && el.dataset.saiu === "false") {
               el.dataset.saiu = "true";
@@ -387,7 +397,6 @@ window.draw = function () {
         }
 
 
-        // ── O MOMENTO DO ARRASTO ──
         if (el.isDragging) {
           el.x = handX;
           el.y = handY;
@@ -400,7 +409,7 @@ window.draw = function () {
         }
 
 
-        // ── LIGAÇÕES MANUAIS ──
+        
         if (gestoAtual === "conecta" && sobreEste && !conectar && palavraEstaNaArena) {
           conectar = true;
           origem = el;
@@ -416,7 +425,7 @@ window.draw = function () {
       });
 
 
-      // Cancela a linha se a mão largar no vazio
+
       if (conectar && gestoAtual !== "conecta" && !sobreQualquerPalavra) {
         conectar = false;
         origem = null;
@@ -425,7 +434,7 @@ window.draw = function () {
   }
 
 
-  // DESENHAR CONEXÕES
+
   for (let c of conexoesConcluidas) {
     stroke(c.cor[0], c.cor[1], c.cor[2]);
     strokeWeight(c.tipo === "maquina" ? 1.5 : 3.5);
@@ -454,4 +463,4 @@ window.draw = function () {
     fill(0, 255, 255);
     circle(handX, handY, 15);
   }
-};ç
+};
