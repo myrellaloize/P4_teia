@@ -8,10 +8,7 @@
           {"id": "garoto", "texto": "garoto"}, {"id": "guri", "texto": "guri"},
           {"id": "moleque", "texto": "moleque"}, {"id": "pirralho", "texto": "pirralho"},
           {"id": "pivete", "texto": "pivete"}, {"id": "pia", "texto": "piá"},
-          {"id": "catraio", "texto": "catraio"}, {"id": "miudo", "texto": "miúdo"},
-          {"id": "fedelho", "texto": "fedelho"}, {"id": "canalha", "texto": "canalha"},
-          {"id": "malandro", "texto": "malandro"}, {"id": "marginal", "texto": "marginal"}, 
-          {"id": "delinquente", "texto": "delinquente"}, {"id": "parceiro", "texto": "parceiro"}
+           {"id": "crianca", "texto": "criança"},
         ]
     },
     {
@@ -22,9 +19,6 @@
         {"id": "moca", "texto": "moça"}, {"id": "garota", "texto": "garota"},
         {"id": "guria", "texto": "guria"}, {"id": "miuda", "texto": "miúda"},
         {"id": "gaja", "texto": "gaja"},
-        {"id": "mocoila", "texto": "moçoila"}, {"id": "donzela", "texto": "donzela"}, 
-        {"id": "senhorita", "texto": "senhorita"}, {"id": "concubina", "texto": "concubina"},
-        {"id": "amante", "texto": "amante"}, {"id": "meretriz", "texto": "meretriz"},
         {"id": "cortesa", "texto": "cortesã"}, {"id": "rameira", "texto": "rameira"}
       ]
     },
@@ -81,6 +75,11 @@
         {"id": "organizar", "texto": "organizar"}, {"id": "consertar", "texto": "consertar"}, {"id": "decorar", "texto": "decorar"}, {"id": "aperfeicoar", "texto": "aperfeiçoar"},
         {"id": "produzir_se", "texto": "produzir-se"}, {"id": "desenrascar", "texto": "desenrascar"}, {"id": "compor", "texto": "compor"}, {"id": "enfeitar", "texto": "enfeitar"},
         {"id": "amanhar", "texto": "amanhar"}, {"id": "dar_um_jeito", "texto": "dar um jeito"}, {"id": "sintonizar", "texto": "sintonizar"}, {"id": "calibrar", "texto": "calibrar"}
+        
+        ,{"id": "miudo", "texto": "miúdo"},
+          {"id": "fedelho", "texto": "fedelho"}, {"id": "canalha", "texto": "canalha"},
+          {"id": "malandro", "texto": "malandro"}, {"id": "marginal", "texto": "marginal"}, 
+          {"id": "delinquente", "texto": "delinquente"}, {"id": "parceiro", "texto": "parceiro"}
       ]
     },
     {
@@ -91,6 +90,10 @@
         {"id": "bagulho", "texto": "bagulho"}, {"id": "peca", "texto": "peça"}, {"id": "parada", "texto": "parada"}, {"id": "lance", "texto": "lance"},
         {"id": "fita", "texto": "fita"}, {"id": "treco", "texto": "treco"}, {"id": "bugiganga", "texto": "bugiganga"}, {"id": "tralha", "texto": "tralha"},
         {"id": "cacarejo", "texto": "cacarejo"}, {"id": "apetrechos", "texto": "apetrechos"}, {"id": "bicho", "texto": "bicho"}, {"id": "vulto", "texto": "vulto"}
+
+        ,{"id": "mocoila", "texto": "moçoila"}, {"id": "donzela", "texto": "donzela"}, 
+        {"id": "senhorita", "texto": "senhorita"}, {"id": "concubina", "texto": "concubina"},
+        {"id": "amante", "texto": "amante"}, {"id": "meretriz", "texto": "meretriz"},
       ]
     },
     {
@@ -180,6 +183,7 @@
     {"de": "pirralho", "para": ["puto", "menino", "garoto", "guri", "moleque", "pivete", "pia", "catraio", "miudo", "fedelho", "canalha", "malandro", "marginal", "delinquente", "parceiro","jovem"]},
     {"de": "pivete", "para": ["puto", "menino", "garoto", "guri", "moleque", "pirralho", "pia", "catraio", "miudo", "fedelho", "canalha", "malandro", "marginal", "delinquente", "parceiro","jovem"]},
     {"de": "pia", "para": ["puto", "menino", "garoto", "guri", "moleque", "pirralho", "pivete", "catraio", "miudo", "fedelho", "canalha", "malandro", "marginal", "delinquente", "parceiro","jovem"]},
+    {"de": "crianca", "para": ["puto", "menino", "garoto", "guri", "moleque", "pirralho", "pivete", "catraio", "miudo", "fedelho","jovem"]},
     {"de": "catraio", "para": ["puto", "menino", "garoto", "guri", "moleque", "pirralho", "pivete", "pia", "miudo", "fedelho", "canalha", "malandro", "marginal", "delinquente", "parceiro","jovem"]},
     {"de": "miudo", "para": ["puto", "menino", "garoto", "guri", "moleque", "pirralho", "pivete", "pia", "catraio", "fedelho", "canalha", "malandro", "marginal", "delinquente", "parceiro","jovem"]},
     {"de": "fedelho", "para": ["puto", "menino", "garoto", "guri", "moleque", "pirralho", "pivete", "pia", "catraio", "miudo", "canalha", "malandro", "marginal", "delinquente", "parceiro","jovem"]},
