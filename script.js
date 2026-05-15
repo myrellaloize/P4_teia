@@ -366,24 +366,12 @@ window.draw = function () {
 
         if (sobreEste) sobreQualquerPalavra = true;
 
-        // Iniciar arrasto — grava offset no momento exato da seleção
-        if (gestoAtual === "escolhe" && sobreEste && !escolhido && !jaConectada && !elEmArrasto) {
-          const r = el.getBoundingClientRect();
-          dragOffsetX = (r.left + r.width  / 2) - handX;
-          dragOffsetY = (r.top  + r.height / 2) - handY;
-          el.isDragging = true;
-          el.classList.add("dragging");
-          escolhido   = true;
-          elEmArrasto = el;
-        }
-
-     // Iniciar arrasto — grava offset no momento exato da seleção
+        // Iniciar arrasto — grava offset no momento exato da seleção e CRIA PLACEHOLDER
         if (gestoAtual === "escolhe" && sobreEste && !escolhido && !jaConectada && !elEmArrasto) {
             const r = el.getBoundingClientRect();
             dragOffsetX = (r.left + r.width / 2) - handX;
             dragOffsetY = (r.top + r.height / 2) - handY;
             
-            // CRIAR PLACEHOLDER: Ocupa o espaço na barra para nada se mexer
             placeholder = document.createElement("div");
             placeholder.className = "sidebar-word";
             placeholder.style.visibility = "hidden";
@@ -397,13 +385,11 @@ window.draw = function () {
             elEmArrasto = el;
         }
 
-        // ── FALTA ESTE BLOCO! COLOCA-O AQUI ──
         // Iniciar ligação
         if (gestoAtual === "conecta" && sobreEste && !conectar && estaArena) {
           conectar = true;
           origem = el;
         }
-        // ───────────────────────────────────────
 
         // Concluir ligação
         if (gestoAtual === "lock" && sobreEste && conectar && el !== origem && estaArena && !validandoHumano) {
@@ -421,24 +407,34 @@ window.draw = function () {
     }
   }
 
-  // ── Conexões concluídas ───────────────────────────────────────
-  for (const c of conexoesConcluidas) {
-    const rDe   = c.de.getBoundingClientRect();
-    const rPara = c.para.getBoundingClientRect();
-    stroke(c.cor[0], c.cor[1], c.cor[2]);
-    strokeWeight(c.tipo === "maquina" ? 1.5 : 3.5);
-    line(
-      rDe.left   + rDe.width   / 2, rDe.top   + rDe.height   / 2,
-      rPara.left + rPara.width / 2, rPara.top + rPara.height / 2
-    );
+  // ── DESENHAR CONEXÕES ───────────────────────────────────────
+  for (let c of conexoesConcluidas) {
+    let rectDe = c.de.getBoundingClientRect();
+    let rectPara = c.para.getBoundingClientRect();
+    
+    let x1 = rectDe.left + rectDe.width / 2;
+    let y1 = rectDe.top + rectDe.height / 2;
+    let x2 = rectPara.left + rectPara.width / 2;
+    let y2 = rectPara.top + rectPara.height / 2;
+
+    if (c.tipo === "maquina") {
+      // Linhas da máquina (Retas e simples)
+      stroke(c.cor[0], c.cor[1], c.cor[2], 150);
+      strokeWeight(1.5);
+      line(x1, y1, x2, y2);
+    } else {
+      // Linhas humanas (Com o efeito de ondas)
+      desenharLinhaHumana(x1, y1, x2, y2, c.cor, true);
+    }
   }
 
-  // ── Linha elástica ────────────────────────────────────────────
+  // ── Linha elástica a conectar (com ondas) ───────────────────
   if (conectar && origem) {
-    const r = origem.getBoundingClientRect();
-    stroke(255, 0, 150);
-    strokeWeight(2);
-    line(r.left + r.width / 2, r.top + r.height / 2, handX, handY);
+    let r1 = origem.getBoundingClientRect();
+    let x1 = r1.left + r1.width / 2;
+    let y1 = r1.top + r1.height / 2;
+    
+    desenharLinhaHumana(x1, y1, handX, handY, [255, 0, 150], false);
   }
 
   // ── Cursor ────────────────────────────────────────────────────
@@ -448,3 +444,36 @@ window.draw = function () {
     circle(handX, handY, 15);
   }
 };
+
+// ── FUNÇÃO DE ONDAS PARA LIGAÇÕES HUMANAS ───────────────────
+function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
+  let d = dist(x1, y1, x2, y2);
+  let angulo = atan2(y2 - y1, x2 - x1);
+
+  stroke(corBase[0], corBase[1], corBase[2], mostrarOndas ? 80 : 200);
+  strokeWeight(mostrarOndas ? 1 : 3.5);
+  line(x1, y1, x2, y2);
+
+  if (mostrarOndas) {
+    push();
+    translate(x1, y1);
+    rotate(angulo);
+    noFill();
+
+    // Ondas animadas
+    for (let n = 0; n < 8; n++) { 
+      let alpha = map(n, 0, 4, 150, 50);
+      stroke(corBase[1], corBase[1], corBase[1], alpha); // Adicionado alpha para suavizar
+      strokeWeight(map(n, 0, 4, 1.5, 0.5));
+      beginShape();
+      for (let i = 0; i <= d; i += 5) {
+        let vel = (0.04 + n * 0.02) * (n % 2 === 0 ? 1 : -1);
+        let freq = i * (0.04 + n * 0.01) + (frameCount * vel);
+        let amp = (2 + n * 2) * sin(PI * i / d);
+        vertex(i, sin(freq) * amp);
+      }
+      endShape();
+    }
+    pop();
+  }
+}
