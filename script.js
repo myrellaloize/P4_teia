@@ -405,6 +405,16 @@ window.draw = function () {
         origem   = null;
       }
     }
+
+    // ── CONTROLO DE ECRÃ INTEIRO (FULLSCREEN) ──
+window.keyPressed = function() {
+  // Se a tecla pressionada for 'f' ou 'F'
+  if (key === 'f' || key === 'F') {
+    let fs = fullscreen();
+    fullscreen(!fs); // Alterna entre ecrã inteiro e janela normal
+  }
+};
+
   }
 
   // ── DESENHAR CONEXÕES ───────────────────────────────────────
