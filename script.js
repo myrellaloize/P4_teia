@@ -7,14 +7,15 @@ const sceneStill = document.getElementById("scene-still");
 const flashEl    = document.getElementById("flash");
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-let handX = 0, handY = 0;
 let video, detector;
-let gestoAtual = "...";
 let conexoesConcluidas = [];
-let conectar = false;
-let origem = null;
-let escolhido = false;
 let validandoHumano = false;
+
+// ── CURSORES DAS MÃOS (MULTIPLAYER) ──
+let cursores = [
+  { x: 0, y: 0, gesto: "", elEmArrasto: null, dragOffsetX: 0, dragOffsetY: 0, placeholder: null, escolhido: false, conectar: false, origem: null },
+  { x: 0, y: 0, gesto: "", elEmArrasto: null, dragOffsetX: 0, dragOffsetY: 0, placeholder: null, escolhido: false, conectar: false, origem: null }
+];
 
 let palavrasDOM = [];
 
@@ -24,7 +25,6 @@ let temaIndex = 0;
 let palavrasNaFila = [];
 
 let ALTURA_ARENA;
-let placeholder = null;
 
 // ── FIX 1: Cache de posições para deteção estável ─────────────────
 let hitCache = new Map();
@@ -44,11 +44,6 @@ function estaSobre(el, hx, hy) {
   const r = el.getBoundingClientRect();
   return hx > r.left && hx < r.right && hy > r.top && hy < r.bottom;
 }
-
-// ── FIX 2: Offset de arrasto ───────────────────────────────────────
-let dragOffsetX  = 0;
-let dragOffsetY  = 0;
-let elEmArrasto  = null;
 
 function doFlash(duration, callback) {
   flashEl.style.transition = `opacity ${duration * 0.001}s ease`;
@@ -258,7 +253,7 @@ window.setup = async function () {
       delegate: "GPU"
     },
     runningMode: "VIDEO",
-    numHands: 1
+    numHands: 2 // MULTIPLAYER ATIVADO!
   });
 
   ALTURA_ARENA = windowHeight * 0.75;
@@ -270,7 +265,7 @@ window.windowResized = function () {
   ALTURA_ARENA = windowHeight * 0.75;
 };
 
-// ── CONTROLO DE ECRÃ INTEIRO (AGORA FORA DO DRAW) ──
+// ── CONTROLO DE ECRÃ INTEIRO ──
 window.keyPressed = function() {
   if (key === 'f' || key === 'F') {
     let fs = fullscreen();
@@ -280,9 +275,12 @@ window.keyPressed = function() {
 
 window.draw = function () {
   clear();
+  let sobreQualquerPalavra = false;
 
   if (sceneStill.style.display === "flex") {
-    if (!elEmArrasto) atualizarHitCache();
+    // Apenas congela o cache se nenhum dos cursores estiver a arrastar algo
+    let alguemArrasta = cursores.some(c => c.elEmArrasto !== null);
+    if (!alguemArrasta) atualizarHitCache();
     organizarPalavrasNaArena();
   }
 
@@ -290,163 +288,133 @@ window.draw = function () {
     const results = detector.detectForVideo(video.elt, performance.now());
 
     if (results.landmarks && results.landmarks.length > 0) {
-      const pontos = results.landmarks[0];
-      handX = lerp(handX, (1 - pontos[8].x) * width, 0.3);
-      handY = lerp(handY, pontos[8].y * height, 0.3);
-      gestoAtual = detectGesture(pontos);
+      results.landmarks.forEach((pontos, i) => {
+        if (i < 2) {
+          let c = cursores[i];
+          c.x = lerp(c.x, (1 - pontos[8].x) * width, 0.3);
+          c.y = lerp(c.y, pontos[8].y * height, 0.3);
+          c.gesto = detectGesture(pontos);
 
-      let sobreQualquerPalavra = false;
+          // ── PARTE 1: ARRASTO INDIVIDUAL
+          if (c.elEmArrasto) {
+            if (c.gesto === "escolhe") {
+              const novoX = c.x + c.dragOffsetX;
+              let novoY = c.y + c.dragOffsetY; // Mudei para let!
 
-      // ── Elemento em arrasto: processa separadamente ────────────
-      if (elEmArrasto) {
-        if (gestoAtual === "escolhe") {
-            const novoX = handX + dragOffsetX;
-            let novoY = handY + dragOffsetY;
+              // ── BLOQUEIO DA SIDEBAR: Impede que palavra desça para a barra ──
+              if (c.elEmArrasto.dataset.saiu === "true") {
+                  const margemH = c.elEmArrasto.offsetHeight / 2;
+                  if (novoY > ALTURA_ARENA - margemH - 10) {
+                      novoY = ALTURA_ARENA - margemH - 10;
+                  }
+              }
 
-            // ── NOVIDADE: BLOQUEIO DA SIDEBAR ──
-            // Se a palavra já pertence à Arena (saiu === "true"), 
-            // não a deixamos voltar a descer fisicamente para o dicionário.
-            if (elEmArrasto.dataset.saiu === "true") {
-                const margemH = elEmArrasto.offsetHeight / 2;
-                if (novoY > ALTURA_ARENA - margemH - 10) {
-                    novoY = ALTURA_ARENA - margemH - 10;
-                }
-            }
+              c.elEmArrasto.x = novoX;
+              c.elEmArrasto.y = novoY;
+              
+              // ── AQUI ESTAVA O ERRO! Faltavam estas 3 linhas para a palavra se mover ──
+              c.elEmArrasto.style.position = "fixed";
+              c.elEmArrasto.style.margin = "0";
+              c.elEmArrasto.style.transform = "translate(-50%, -50%)";
 
-            elEmArrasto.x = novoX;
-            elEmArrasto.y = novoY;
-            elEmArrasto.style.position = "fixed";
-            elEmArrasto.style.margin = "0";
-            elEmArrasto.style.transform = "translate(-50%, -50%)";
-            elEmArrasto.style.left = novoX + "px";
-            elEmArrasto.style.top = novoY + "px";
-            conectar = false;
-        } else {
-            // SOLTAR A PALAVRA
-            const el = elEmArrasto;
-            el.isDragging = false;
-            el.classList.remove("dragging");
-            
-            const rect = el.getBoundingClientRect();
-            const centroY = rect.top + rect.height / 2;
-            const soltaNaArena = centroY < ALTURA_ARENA;
+              c.elEmArrasto.style.left = novoX + "px";
+              c.elEmArrasto.style.top = novoY + "px";
+              c.conectar = false;
+            } else {
+              // SOLTAR PALAVRA
+              const el = c.elEmArrasto;
+              el.isDragging = false;
+              el.classList.remove("dragging");
+              const rect = el.getBoundingClientRect();
+              const soltaNaArena = (rect.top + rect.height / 2) < ALTURA_ARENA;
 
-            if (!soltaNaArena && el.dataset.saiu === "false") {
-                if (placeholder) {
-                    placeholder.parentNode.insertBefore(el, placeholder);
-                }
-                el.style.position = "";
-                el.style.left = "";
-                el.style.top = "";
-                el.style.transform = "";
-                delete el.x;
-                delete el.y;
-            } 
-            else {
+              if (!soltaNaArena && el.dataset.saiu === "false") {
+                if (c.placeholder) c.placeholder.parentNode.insertBefore(el, c.placeholder);
+                el.style.position = ""; el.style.left = ""; el.style.top = ""; el.style.transform = "";
+              } else {
                 if (soltaNaArena && el.dataset.saiu === "false") {
-                    el.dataset.saiu = "true";
-                    const proximoIrmao = placeholder ? placeholder.nextSibling : el.nextSibling;
-                    document.getElementById("main-area").appendChild(el);
-                    spawnNovaPalavra(proximoIrmao);
+                  el.dataset.saiu = "true";
+                  document.getElementById("main-area").appendChild(el);
+                  spawnNovaPalavra(c.placeholder ? c.placeholder.nextSibling : el.nextSibling);
                 }
-                
                 if (soltaNaArena !== (el.dataset.naArena === "true")) {
-                    el.dataset.naArena = soltaNaArena ? "true" : "false";
-                    pedirLigacoesDaMaquina();
+                  el.dataset.naArena = soltaNaArena ? "true" : "false";
+                  pedirLigacoesDaMaquina();
                 }
+              }
+              if (c.placeholder) { c.placeholder.remove(); c.placeholder = null; }
+              c.elEmArrasto = null; c.escolhido = false;
             }
+          }
 
-            if (placeholder) {
-                placeholder.remove();
-                placeholder = null;
-            }
-            elEmArrasto = null;
-            escolhido = false;
-            hitCache.clear();
-        }
-      }
-
-      // ── Processar restantes palavras ──────────────────────────
-      palavrasDOM.forEach(el => {
-        if (el === elEmArrasto) return;
-
-        const sobreEste       = estaSobre(el, handX, handY);
-        const estaArena       = el.dataset.naArena === "true";
-        const jaConectada     = conexoesConcluidas.some(c => c.de === el || c.para === el);
-
-        if (sobreEste) sobreQualquerPalavra = true;
-
-        if (gestoAtual === "escolhe" && sobreEste && !escolhido && !jaConectada && !elEmArrasto) {
-            const r = el.getBoundingClientRect();
-            dragOffsetX = (r.left + r.width / 2) - handX;
-            dragOffsetY = (r.top + r.height / 2) - handY;
+          // ── PARTE 2: INTERAÇÕES INDIVIDUAIS
+          palavrasDOM.forEach(el => {
+            // Se a palavra já está a ser arrastada por outro cursor, ignorar!
+            const ocupada = cursores.some(curs => curs !== c && curs.elEmArrasto === el);
+            if (ocupada) return;
             
-            placeholder = document.createElement("div");
-            placeholder.className = "sidebar-word";
-            placeholder.style.visibility = "hidden";
-            placeholder.style.width = r.width + "px";
-            placeholder.style.height = r.height + "px";
-            el.parentNode.insertBefore(placeholder, el);
+            const sobreEste = estaSobre(el, c.x, c.y);
+            if (sobreEste) sobreQualquerPalavra = true;
 
-            el.isDragging = true;
-            el.classList.add("dragging");
-            escolhido = true;
-            elEmArrasto = el;
-        }
+            if (c.gesto === "escolhe" && sobreEste && !c.escolhido && !c.elEmArrasto) {
+              const r = el.getBoundingClientRect();
+              c.dragOffsetX = (r.left + r.width / 2) - c.x;
+              c.dragOffsetY = (r.top + r.height / 2) - c.y;
+              c.placeholder = document.createElement("div");
+              c.placeholder.className = "sidebar-word";
+              c.placeholder.style.visibility = "hidden";
+              c.placeholder.style.width = r.width + "px"; // Importante para não fechar o buraco
+              c.placeholder.style.height = r.height + "px";
+              el.parentNode.insertBefore(c.placeholder, el);
+              el.isDragging = true; el.classList.add("dragging");
+              c.escolhido = true; c.elEmArrasto = el;
+            }
 
-        if (gestoAtual === "conecta" && sobreEste && !conectar && estaArena) {
-          conectar = true;
-          origem = el;
-        }
+            if (c.gesto === "conecta" && sobreEste && !c.conectar && el.dataset.naArena === "true") {
+              c.conectar = true; c.origem = el;
+            }
 
-        if (gestoAtual === "lock" && sobreEste && conectar && el !== origem && estaArena && !validandoHumano) {
-          validandoHumano = true;
-          validarHumano(origem, el);
-          conectar = false;
-          origem   = null;
+            if (c.gesto === "lock" && sobreEste && c.conectar && el !== c.origem && !validandoHumano) {
+              validandoHumano = true;
+              validarHumano(c.origem, el);
+              c.conectar = false; c.origem = null;
+            }
+          });
+
+          if (c.conectar && c.gesto !== "conecta" && !sobreQualquerPalavra) {
+            c.conectar = false; c.origem = null;
+          }
         }
       });
-      
-      if (conectar && gestoAtual !== "conecta" && !sobreQualquerPalavra) {
-        conectar = false;
-        origem   = null;
-      }
     }
   }
 
-  // ── DESENHAR CONEXÕES ───────────────────────────────────────
-  for (let c of conexoesConcluidas) {
-    let rectDe = c.de.getBoundingClientRect();
-    let rectPara = c.para.getBoundingClientRect();
-    
-    let x1 = rectDe.left + rectDe.width / 2;
-    let y1 = rectDe.top + rectDe.height / 2;
-    let x2 = rectPara.left + rectPara.width / 2;
-    let y2 = rectPara.top + rectPara.height / 2;
-
-    if (c.tipo === "maquina") {
-      stroke(c.cor[0], c.cor[1], c.cor[2], 150);
+  // ── DESENHO FORA DO LOOP DE DETECÇÃO (Para estabilidade) ──
+  conexoesConcluidas.forEach(con => {
+    let r1 = con.de.getBoundingClientRect();
+    let r2 = con.para.getBoundingClientRect();
+    if (con.tipo === "maquina") {
+      stroke(con.cor[0], con.cor[1], con.cor[2], 150);
       strokeWeight(1.5);
-      line(x1, y1, x2, y2);
+      line(r1.left + r1.width/2, r1.top + r1.height/2, r2.left + r2.width/2, r2.top + r2.height/2);
     } else {
-      desenharLinhaHumana(x1, y1, x2, y2, c.cor, true);
+      desenharLinhaHumana(r1.left+r1.width/2, r1.top+r1.height/2, r2.left+r2.width/2, r2.top+r2.height/2, con.cor, true);
     }
-  }
+  });
 
-  // ── Linha elástica a conectar (com ondas) ───────────────────
-  if (conectar && origem) {
-    let r1 = origem.getBoundingClientRect();
-    let x1 = r1.left + r1.width / 2;
-    let y1 = r1.top + r1.height / 2;
-    
-    desenharLinhaHumana(x1, y1, handX, handY, [255, 0, 150], false);
-  }
-
-  if (sceneStill.style.display === "flex") {
-    noStroke();
-    fill(0, 255, 255);
-    circle(handX, handY, 15);
-  }
+  cursores.forEach((c, index) => {
+    // Linha elástica
+    if (c.conectar && c.origem) {
+      let r = c.origem.getBoundingClientRect();
+      desenharLinhaHumana(r.left + r.width/2, r.top + r.height/2, c.x, c.y, [255, 0, 150], false);
+    }
+    // Círculo do cursor (Ciano para a Mão 1, Amarelo para a Mão 2)
+    if (sceneStill.style.display === "flex") {
+      noStroke();
+      fill(index === 0 ? [0, 255, 255] : [255, 255, 0]);
+      circle(c.x, c.y, 15);
+    }
+  });
 };
 
 // ── FUNÇÃO DE ONDAS PARA LIGAÇÕES HUMANAS ───────────────────
@@ -454,8 +422,8 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
   let d = dist(x1, y1, x2, y2);
   let angulo = atan2(y2 - y1, x2 - x1);
 
-  stroke(corBase[0], corBase[1], corBase[2], mostrarOndas ? 80 : 200);
-  strokeWeight(mostrarOndas ? 1 : 3.5);
+  stroke(corBase[2], corBase[0], corBase[0], mostrarOndas ? 80 : 200);
+  strokeWeight(mostrarOndas ? 1 : 2);
   line(x1, y1, x2, y2);
 
   if (mostrarOndas) {
@@ -464,15 +432,28 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
     rotate(angulo);
     noFill();
 
-    for (let n = 0; n < 8; n++) { 
-      let alpha = map(n, 0, 4, 150, 50);
-      stroke(corBase[1], corBase[1], corBase[1], alpha); 
-      strokeWeight(map(n, 0, 4, 1.5, 0.5));
+    // cores das ondas
+    let coresOndas = [
+      [255, 255, 255],   
+      [0, 255, 255],     
+      [150, 0, 255],     
+      [255, 0, 200],
+      [255, 255, 255], 
+      [0, 255, 255],     
+      [150, 0, 255],     
+      [255, 0, 200]      
+    ];
+
+    for (let n = 0; n < coresOndas.length; n++) {
+      let c = coresOndas[n];
+      stroke(c[0], c[1], c[2],200);
+      strokeWeight(map(n, 0, coresOndas.length, 1.8, 0.8));
+
       beginShape();
       for (let i = 0; i <= d; i += 5) {
         let vel = (0.04 + n * 0.02) * (n % 2 === 0 ? 1 : -1);
         let freq = i * (0.04 + n * 0.01) + (frameCount * vel);
-        let amp = (2 + n * 2) * sin(PI * i / d);
+        let amp = ( n * 1) * sin(PI * i / d);
         vertex(i, sin(freq) * amp);
       }
       endShape();
