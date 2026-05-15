@@ -435,16 +435,35 @@ window.draw = function () {
 
 
 
-  for (let c of conexoesConcluidas) {
-    stroke(c.cor[0], c.cor[1], c.cor[2]);
-    strokeWeight(c.tipo === "maquina" ? 1.5 : 3.5);
-    let rectDe = c.de.getBoundingClientRect();
-    let rectPara = c.para.getBoundingClientRect();
-    line(
-      rectDe.left + rectDe.width / 2, rectDe.top + rectDe.height / 2,
-      rectPara.left + rectPara.width / 2, rectPara.top + rectPara.height / 2
-    );
+ // DESENHAR CONEXÕES
+for (let c of conexoesConcluidas) {
+  let rectDe = c.de.getBoundingClientRect();
+  let rectPara = c.para.getBoundingClientRect();
+  
+  let x1 = rectDe.left + rectDe.width / 2;
+  let y1 = rectDe.top + rectDe.height / 2;
+  let x2 = rectPara.left + rectPara.width / 2;
+  let y2 = rectPara.top + rectPara.height / 2;
+
+  if (c.tipo === "maquina") {
+    // linhas maquina 
+    stroke(c.cor[0], c.cor[1], c.cor[2], 150);
+    strokeWeight(1.5);
+    line(x1, y1, x2, y2);
+  } else {
+    //linhas humanas
+    desenharLinhaHumana(x1, y1, x2, y2, c.cor, true);
   }
+}
+
+// linha a conectar
+if (conectar && origem) {
+  let r1 = origem.getBoundingClientRect();
+  let x1 = r1.left + r1.width / 2;
+  let y1 = r1.top + r1.height / 2;
+  
+  desenharLinhaHumana(x1, y1, handX, handY, [255, 0, 150], false);
+}
 
 
   if (conectar && origem) {
@@ -464,3 +483,35 @@ window.draw = function () {
     circle(handX, handY, 15);
   }
 };
+ //linha com ondas 
+function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
+  let d = dist(x1, y1, x2, y2);
+  let angulo = atan2(y2 - y1, x2 - x1);
+
+  stroke(corBase[0], corBase[1], corBase[2], mostrarOndas ? 80 : 200);
+  strokeWeight(mostrarOndas ? 1 : 3.5);
+  line(x1, y1, x2, y2);
+
+  if (mostrarOndas) {
+    push();
+    translate(x1, y1);
+    rotate(angulo);
+    noFill();
+
+    //ondas
+    for (let n = 0; n < 8; n++) { 
+      let alpha = map(n, 0, 4, 150, 50);
+      stroke(corBase[1], corBase[1], corBase[1]);
+      strokeWeight(map(n, 0, 4, 1.5, 0.5));
+      beginShape();
+      for (let i = 0; i <= d; i += 5) {
+        let vel = (0.04 + n * 0.02) * (n % 2 === 0 ? 1 : -1);
+        let freq = i * (0.04 + n * 0.01) + (frameCount * vel);
+        let amp = (2 + n * 2) * sin(PI * i / d);
+        vertex(i, sin(freq) * amp);
+      }
+      endShape();
+    }
+    pop();
+  }
+}
