@@ -27,8 +27,6 @@ let ALTURA_ARENA;
 let placeholder = null;
 
 // ── FIX 1: Cache de posições para deteção estável ─────────────────
-// Recalcular getBoundingClientRect() a cada frame falha quando a div
-// se move. Guardamos as posições antes do arrasto começar.
 let hitCache = new Map();
 
 function atualizarHitCache() {
@@ -48,8 +46,6 @@ function estaSobre(el, hx, hy) {
 }
 
 // ── FIX 2: Offset de arrasto ───────────────────────────────────────
-// Guarda a diferença entre o centro da palavra e a mão no momento
-// da seleção — a palavra segue a mão SEM saltar para ela.
 let dragOffsetX  = 0;
 let dragOffsetY  = 0;
 let elEmArrasto  = null;
@@ -188,7 +184,6 @@ function detectGesture(landmarks) {
   const anelar    = calcularDistancia(landmarks[16], pulso) > calcularDistancia(landmarks[14], pulso);
   const mindinho  = calcularDistancia(landmarks[20], pulso) > calcularDistancia(landmarks[18], pulso);
 
-  // Ordem importa: lock tem prioridade sobre conecta
   if (indicador && medio && anelar && mindinho)  return "lock";
   if (indicador && medio && !anelar && !mindinho) return "conecta";
   if (indicador && !medio && !anelar && !mindinho) return "escolhe";
@@ -275,11 +270,19 @@ window.windowResized = function () {
   ALTURA_ARENA = windowHeight * 0.75;
 };
 
+// ── CONTROLO DE ECRÃ INTEIRO (AGORA FORA DO DRAW) ──
+window.keyPressed = function() {
+  if (key === 'f' || key === 'F') {
+    let fs = fullscreen();
+    fullscreen(!fs);
+  }
+};
+
 window.draw = function () {
   clear();
 
   if (sceneStill.style.display === "flex") {
-    if (!elEmArrasto) atualizarHitCache(); // congela posições quando não há arrasto
+    if (!elEmArrasto) atualizarHitCache();
     organizarPalavrasNaArena();
   }
 
@@ -296,65 +299,72 @@ window.draw = function () {
 
       // ── Elemento em arrasto: processa separadamente ────────────
       if (elEmArrasto) {
-    if (gestoAtual === "escolhe") {
-        const novoX = handX + dragOffsetX;
-        const novoY = handY + dragOffsetY;
-        elEmArrasto.x = novoX;
-        elEmArrasto.y = novoY;
-        elEmArrasto.style.position = "fixed";
-        elEmArrasto.style.margin = "0";
-        elEmArrasto.style.transform = "translate(-50%, -50%)"; // Centraliza no ponto do offset
-        elEmArrasto.style.left = novoX + "px";
-        elEmArrasto.style.top = novoY + "px";
-        conectar = false;
-    } else {
-        // SOLTAR A PALAVRA
-        const el = elEmArrasto;
-        el.isDragging = false;
-        el.classList.remove("dragging");
-        
-        const rect = el.getBoundingClientRect();
-        const centroY = rect.top + rect.height / 2;
-        const soltaNaArena = centroY < ALTURA_ARENA;
+        if (gestoAtual === "escolhe") {
+            const novoX = handX + dragOffsetX;
+            let novoY = handY + dragOffsetY;
 
-        // CASO 1: Cancelar (Volta para o lugar do placeholder)
-        if (!soltaNaArena && el.dataset.saiu === "false") {
-            if (placeholder) {
-                placeholder.parentNode.insertBefore(el, placeholder); // Devolve a palavra ao "buraco"
+            // ── NOVIDADE: BLOQUEIO DA SIDEBAR ──
+            // Se a palavra já pertence à Arena (saiu === "true"), 
+            // não a deixamos voltar a descer fisicamente para o dicionário.
+            if (elEmArrasto.dataset.saiu === "true") {
+                const margemH = elEmArrasto.offsetHeight / 2;
+                if (novoY > ALTURA_ARENA - margemH - 10) {
+                    novoY = ALTURA_ARENA - margemH - 10;
+                }
             }
-            el.style.position = "";
-            el.style.left = "";
-            el.style.top = "";
-            el.style.transform = "";
-            delete el.x;
-            delete el.y;
-        } 
-        // CASO 2: Confirmar Entrada na Arena
-        else {
-            if (soltaNaArena && el.dataset.saiu === "false") {
-                el.dataset.saiu = "true";
-                // A nova palavra nasce no lugar onde estava o placeholder
-                const proximoIrmao = placeholder ? placeholder.nextSibling : el.nextSibling;
-                document.getElementById("main-area").appendChild(el);
-                spawnNovaPalavra(proximoIrmao);
-            }
+
+            elEmArrasto.x = novoX;
+            elEmArrasto.y = novoY;
+            elEmArrasto.style.position = "fixed";
+            elEmArrasto.style.margin = "0";
+            elEmArrasto.style.transform = "translate(-50%, -50%)";
+            elEmArrasto.style.left = novoX + "px";
+            elEmArrasto.style.top = novoY + "px";
+            conectar = false;
+        } else {
+            // SOLTAR A PALAVRA
+            const el = elEmArrasto;
+            el.isDragging = false;
+            el.classList.remove("dragging");
             
-            if (soltaNaArena !== (el.dataset.naArena === "true")) {
-                el.dataset.naArena = soltaNaArena ? "true" : "false";
-                pedirLigacoesDaMaquina();
-            }
-        }
+            const rect = el.getBoundingClientRect();
+            const centroY = rect.top + rect.height / 2;
+            const soltaNaArena = centroY < ALTURA_ARENA;
 
-        // Limpeza final do placeholder
-        if (placeholder) {
-            placeholder.remove();
-            placeholder = null;
+            if (!soltaNaArena && el.dataset.saiu === "false") {
+                if (placeholder) {
+                    placeholder.parentNode.insertBefore(el, placeholder);
+                }
+                el.style.position = "";
+                el.style.left = "";
+                el.style.top = "";
+                el.style.transform = "";
+                delete el.x;
+                delete el.y;
+            } 
+            else {
+                if (soltaNaArena && el.dataset.saiu === "false") {
+                    el.dataset.saiu = "true";
+                    const proximoIrmao = placeholder ? placeholder.nextSibling : el.nextSibling;
+                    document.getElementById("main-area").appendChild(el);
+                    spawnNovaPalavra(proximoIrmao);
+                }
+                
+                if (soltaNaArena !== (el.dataset.naArena === "true")) {
+                    el.dataset.naArena = soltaNaArena ? "true" : "false";
+                    pedirLigacoesDaMaquina();
+                }
+            }
+
+            if (placeholder) {
+                placeholder.remove();
+                placeholder = null;
+            }
+            elEmArrasto = null;
+            escolhido = false;
+            hitCache.clear();
         }
-        elEmArrasto = null;
-        escolhido = false;
-        hitCache.clear();
-    }
-}
+      }
 
       // ── Processar restantes palavras ──────────────────────────
       palavrasDOM.forEach(el => {
@@ -366,7 +376,6 @@ window.draw = function () {
 
         if (sobreEste) sobreQualquerPalavra = true;
 
-        // Iniciar arrasto — grava offset no momento exato da seleção e CRIA PLACEHOLDER
         if (gestoAtual === "escolhe" && sobreEste && !escolhido && !jaConectada && !elEmArrasto) {
             const r = el.getBoundingClientRect();
             dragOffsetX = (r.left + r.width / 2) - handX;
@@ -385,36 +394,24 @@ window.draw = function () {
             elEmArrasto = el;
         }
 
-        // Iniciar ligação
         if (gestoAtual === "conecta" && sobreEste && !conectar && estaArena) {
           conectar = true;
           origem = el;
         }
 
-        // Concluir ligação
         if (gestoAtual === "lock" && sobreEste && conectar && el !== origem && estaArena && !validandoHumano) {
           validandoHumano = true;
           validarHumano(origem, el);
           conectar = false;
           origem   = null;
         }
-      }); // Fim do forEach
+      });
       
       if (conectar && gestoAtual !== "conecta" && !sobreQualquerPalavra) {
         conectar = false;
         origem   = null;
       }
     }
-
-    // ── CONTROLO DE ECRÃ INTEIRO (FULLSCREEN) ──
-window.keyPressed = function() {
-  // Se a tecla pressionada for 'f' ou 'F'
-  if (key === 'f' || key === 'F') {
-    let fs = fullscreen();
-    fullscreen(!fs); // Alterna entre ecrã inteiro e janela normal
-  }
-};
-
   }
 
   // ── DESENHAR CONEXÕES ───────────────────────────────────────
@@ -428,12 +425,10 @@ window.keyPressed = function() {
     let y2 = rectPara.top + rectPara.height / 2;
 
     if (c.tipo === "maquina") {
-      // Linhas da máquina (Retas e simples)
       stroke(c.cor[0], c.cor[1], c.cor[2], 150);
-      strokeWeight(2);
+      strokeWeight(1.5);
       line(x1, y1, x2, y2);
     } else {
-      // Linhas humanas (Com o efeito de ondas)
       desenharLinhaHumana(x1, y1, x2, y2, c.cor, true);
     }
   }
@@ -444,10 +439,9 @@ window.keyPressed = function() {
     let x1 = r1.left + r1.width / 2;
     let y1 = r1.top + r1.height / 2;
     
-    desenharLinhaHumana(x1, y1, handX, handY, [255, 255, 255], false);
+    desenharLinhaHumana(x1, y1, handX, handY, [255, 0, 150], false);
   }
 
-  // ── Cursor ────────────────────────────────────────────────────
   if (sceneStill.style.display === "flex") {
     noStroke();
     fill(0, 255, 255);
@@ -460,8 +454,8 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
   let d = dist(x1, y1, x2, y2);
   let angulo = atan2(y2 - y1, x2 - x1);
 
-  stroke(corBase[2], corBase[0], corBase[0], mostrarOndas ? 80 : 200);
-  strokeWeight(mostrarOndas ? 1 : 2);
+  stroke(corBase[0], corBase[1], corBase[2], mostrarOndas ? 80 : 200);
+  strokeWeight(mostrarOndas ? 1 : 3.5);
   line(x1, y1, x2, y2);
 
   if (mostrarOndas) {
@@ -470,32 +464,15 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
     rotate(angulo);
     noFill();
 
-    // cores das ondas
-    let coresOndas = [
-      [255, 255, 255],   
-      [0, 255, 255],     
-      [150, 0, 255],     
-      [255, 0, 200],
-      [255, 255, 255], 
-      [0, 255, 255],     
-      [150, 0, 255],     
-      [255, 0, 200]      
-    ];
-
-    for (let n = 0; n < coresOndas.length; n++) {
-      let c = coresOndas[n];
-      
-      
-      
-      stroke(c[0], c[1], c[2],200);
-      
-      strokeWeight(map(n, 0, coresOndas.length, 1.8, 0.8));
-
+    for (let n = 0; n < 8; n++) { 
+      let alpha = map(n, 0, 4, 150, 50);
+      stroke(corBase[1], corBase[1], corBase[1], alpha); 
+      strokeWeight(map(n, 0, 4, 1.5, 0.5));
       beginShape();
       for (let i = 0; i <= d; i += 5) {
         let vel = (0.04 + n * 0.02) * (n % 2 === 0 ? 1 : -1);
         let freq = i * (0.04 + n * 0.01) + (frameCount * vel);
-        let amp = ( n * 1) * sin(PI * i / d);
+        let amp = (2 + n * 2) * sin(PI * i / d);
         vertex(i, sin(freq) * amp);
       }
       endShape();
