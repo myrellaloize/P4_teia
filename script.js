@@ -430,7 +430,7 @@ window.keyPressed = function() {
     if (c.tipo === "maquina") {
       // Linhas da máquina (Retas e simples)
       stroke(c.cor[0], c.cor[1], c.cor[2], 150);
-      strokeWeight(1.5);
+      strokeWeight(2);
       line(x1, y1, x2, y2);
     } else {
       // Linhas humanas (Com o efeito de ondas)
@@ -444,7 +444,7 @@ window.keyPressed = function() {
     let x1 = r1.left + r1.width / 2;
     let y1 = r1.top + r1.height / 2;
     
-    desenharLinhaHumana(x1, y1, handX, handY, [255, 0, 150], false);
+    desenharLinhaHumana(x1, y1, handX, handY, [255, 255, 255], false);
   }
 
   // ── Cursor ────────────────────────────────────────────────────
@@ -460,8 +460,8 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
   let d = dist(x1, y1, x2, y2);
   let angulo = atan2(y2 - y1, x2 - x1);
 
-  stroke(corBase[0], corBase[1], corBase[2], mostrarOndas ? 80 : 200);
-  strokeWeight(mostrarOndas ? 1 : 3.5);
+  stroke(corBase[2], corBase[0], corBase[0], mostrarOndas ? 80 : 200);
+  strokeWeight(mostrarOndas ? 1 : 2);
   line(x1, y1, x2, y2);
 
   if (mostrarOndas) {
@@ -470,16 +470,32 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
     rotate(angulo);
     noFill();
 
-    // Ondas animadas
-    for (let n = 0; n < 8; n++) { 
-      let alpha = map(n, 0, 4, 150, 50);
-      stroke(corBase[1], corBase[1], corBase[1], alpha); // Adicionado alpha para suavizar
-      strokeWeight(map(n, 0, 4, 1.5, 0.5));
+    // cores das ondas
+    let coresOndas = [
+      [255, 255, 255],   
+      [0, 255, 255],     
+      [150, 0, 255],     
+      [255, 0, 200],
+      [255, 255, 255], 
+      [0, 255, 255],     
+      [150, 0, 255],     
+      [255, 0, 200]      
+    ];
+
+    for (let n = 0; n < coresOndas.length; n++) {
+      let c = coresOndas[n];
+      
+      
+      
+      stroke(c[0], c[1], c[2],200);
+      
+      strokeWeight(map(n, 0, coresOndas.length, 1.8, 0.8));
+
       beginShape();
       for (let i = 0; i <= d; i += 5) {
         let vel = (0.04 + n * 0.02) * (n % 2 === 0 ? 1 : -1);
         let freq = i * (0.04 + n * 0.01) + (frameCount * vel);
-        let amp = (2 + n * 2) * sin(PI * i / d);
+        let amp = ( n * 1) * sin(PI * i / d);
         vertex(i, sin(freq) * amp);
       }
       endShape();
