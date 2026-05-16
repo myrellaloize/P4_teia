@@ -1,8 +1,19 @@
 import json
+import os
+import nltk
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from nltk.corpus import wordnet as wn
 import schemas
+
+# ── CINTO DE SEGURANÇA DO NLTK PARA O RENDER ──
+nltk_data_dir = "/opt/render/nltk_data"
+if not os.path.exists(nltk_data_dir):
+    os.makedirs(nltk_data_dir, exist_ok=True)
+nltk.data.path.append(nltk_data_dir)
+nltk.download('wordnet', download_dir=nltk_data_dir, quiet=True)
+nltk.download('omw-1.4', download_dir=nltk_data_dir, quiet=True)
+# ───────────────────────────────────────────────
 
 # 1. Carrega o json
 with open("palavras.json", "r", encoding="utf-8") as f:
@@ -13,7 +24,7 @@ PALAVRAS_FLAT = []
 for tema in dados.get("temas", []):
     PALAVRAS_FLAT.extend(tema.get("palavras", []))
 
-# novo nome do do dicionário de ligações
+# novo nome do dicionário de ligações
 GABARITO = dados.get("gabarito", [])
 
 app = FastAPI(title="Teia de Palavras API")
@@ -27,12 +38,16 @@ app.add_middleware(
 )
 
 def verificar_nltk(p1: str, p2: str) -> bool:
-    synsets_p1 = wn.synsets(p1, lang='por')
-    sinonimos_p1 = set()
-    for synset in synsets_p1:
-        para_cada_palavra = synset.lemma_names('por')
-        sinonimos_p1.update([lemma.lower() for lemma in para_cada_palavra])
-    return p2 in sinonimos_p1
+    try:
+        synsets_p1 = wn.synsets(p1, lang='por')
+        sinonimos_p1 = set()
+        for synset in synsets_p1:
+            para_cada_palavra = synset.lemma_names('por')
+            sinonimos_p1.update([lemma.lower() for lemma in para_cada_palavra])
+        return p2 in sinonimos_p1
+    except Exception as e:
+        print(f"Erro no NLTK ao verificar {p1} e {p2}: {e}")
+        return False
 
 @app.get("/")
 def raiz():
