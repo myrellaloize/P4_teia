@@ -99,3 +99,4 @@ def validar_ligacao(dados_ligacao: schemas.VerificarLigacao):
         "de": p1, "para": p2, "valida": valida,
         "tipo": "confirmada" if valida else "neutra"
     }
+    
