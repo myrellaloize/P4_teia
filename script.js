@@ -26,6 +26,79 @@ let palavrasNaFila = [];
 
 let ALTURA_ARENA;
 
+//variaveis para a intro
+let estadoInteracao = "esperando"; // esperar 
+let tempoInstrucoesOrigem = 10;     // Segundos que as instruções ficam no ecrã
+let tempoContagem = tempoInstrucoesOrigem;
+let intervaloInstrucoes = null;
+let ultimoMomentoComMao = Date.now();
+const TEMPO_TIMEOUT = 20000; // tampo max sem a mao antes de desligar
+let primeiroMomentoComMao = null; // Guarda quando a mão apareceu pela primeira vez
+const TEMPO_PARA_ATIVAR = 5000; // tempo que a mao tem que estra no ecra para iniciar
+
+// ── FUNÇÃO DE GERENCIAMENTO DE ESTADOS ───────────────────────────
+function mudarEstado(novoEstado) {
+  estadoInteracao = novoEstado;
+  
+  const lineTimer = document.getElementById("line-timer");
+  const lines = ["line1", "line2", "line3", "line4"].map(id => document.getElementById(id));
+
+  if (estadoInteracao === "esperando") {
+    
+    sceneIntro.style.display = "flex";
+    sceneIntro.style.opacity = "1";
+    
+    lines.forEach(line => { if(line) line.classList.remove("visible"); });
+    if (lineTimer) {
+      lineTimer.style.opacity = "0";
+    }
+    
+    // 
+    sceneStill.style.display = "flex"; 
+  } 
+  
+  else if (estadoInteracao === "instrucoes") {
+    // linhas de intrucoes
+    lines.forEach((line, index) => {
+      setTimeout(() => {
+        if (estadoInteracao === "instrucoes" && line) line.classList.add("visible");
+      }, index * 300);
+    });
+
+    // Ativa o contador de segundos
+    tempoContagem = tempoInstrucoesOrigem;
+    const campoTextoTempo = document.getElementById("tempo-restante");
+    if (campoTextoTempo) campoTextoTempo.textContent = tempoContagem;
+    
+    if (lineTimer) lineTimer.style.opacity = "1";
+
+    clearInterval(intervaloInstrucoes);
+    intervaloInstrucoes = setInterval(() => {
+      tempoContagem--;
+      if (campoTextoTempo) campoTextoTempo.textContent = tempoContagem;
+      
+      if (tempoContagem <= 0) {
+        clearInterval(intervaloInstrucoes);
+        mudarEstado("jogando");
+      }
+    }, 1000);
+  } 
+  
+  else if (estadoInteracao === "jogando") {
+    // Esconder a intro
+    sceneIntro.style.opacity = "0";
+    setTimeout(() => {
+      if (estadoInteracao === "jogando") sceneIntro.style.display = "none";
+    }, 500);
+    
+    doFlash(180);
+    ultimoMomentoComMao = Date.now(); // Inicia a contagem de inatividade
+  }
+}
+
+
+
+//
 // ── FIX 1: Cache de posições para deteção estável ─────────────────
 let hitCache = new Map();
 
@@ -54,22 +127,8 @@ function doFlash(duration, callback) {
   }, duration);
 }
 
-async function runIntro() {
-  await sleep(600);
-  document.getElementById("line1").classList.add("visible");
-  await sleep(1500);
-  document.getElementById("line2").classList.add("visible");
-  await sleep(1500);
-  document.getElementById("line3").classList.add("visible");
-  await sleep(1500);
-  document.getElementById("line4").classList.add("visible");
-  await sleep(2400);
-  sceneIntro.style.transition = "opacity 0.1s";
-  sceneIntro.style.opacity = "0";
-  setTimeout(() => (sceneIntro.style.display = "none"), 200);
-  doFlash(180, initSidebar);
-}
-
+//mududou para a intro nova
+// 
 async function initSidebar() {
   sceneStill.style.display = "flex";
   const sidebar = document.getElementById("sidebar");
@@ -83,8 +142,13 @@ async function initSidebar() {
     temas = data.temas || [];
     if (temas.length > 0) palavrasNaFila = [...temas[0].palavras];
     for (let i = 0; i < 16; i++) spawnNovaPalavra(null);
+    
+    // Ativa o estado inicial de espera
+    mudarEstado("esperando");
   } catch (e) {
     console.error("Erro a ligar ao Python:", e);
+    
+    mudarEstado("esperando");
   }
 }
 
@@ -119,7 +183,8 @@ function spawnNovaPalavra(referenceNode) {
     setTimeout(() => el.classList.add("visible"), 50);
   }
 }
-
+//
+//
 async function pedirLigacoesDaMaquina() {
   let palavrasAtivas = palavrasDOM
     .filter(el => el.dataset.naArena === "true")
@@ -257,7 +322,7 @@ window.setup = async function () {
   });
 
   ALTURA_ARENA = windowHeight * 0.75;
-  runIntro();
+  initSidebar(); //modificado 
 };
 
 window.windowResized = function () {
@@ -275,6 +340,8 @@ window.keyPressed = function() {
 
 window.draw = function () {
   clear();
+
+
   let sobreQualquerPalavra = false;
 
   if (sceneStill.style.display === "flex") {
@@ -287,6 +354,46 @@ window.draw = function () {
   if (detector && video.elt.readyState === 4 && sceneStill.style.display === "flex") {
     const results = detector.detectForVideo(video.elt, performance.now());
 
+//para a intro nova 
+
+
+// sensor de presença da mao
+    const maoDetetada = results && results.landmarks && results.landmarks.length > 0;
+
+    if (maoDetetada) {
+      ultimoMomentoComMao = Date.now(); // Mantém o timer de inatividade atualizado
+      
+      if (estadoInteracao === "esperando") {
+        // Se é a primeira vez que vemos a mão neste ciclo, começa a contar o tempo
+        if (primeiroMomentoComMao === null) {
+          primeiroMomentoComMao = Date.now();
+        }
+        
+        // Calcula há quantos milissegundos a mão está ali plantada
+        const tempoPresente = Date.now() - primeiroMomentoComMao;
+        
+        // SÓ ativa as instruções se a pessoa ficar
+        if (tempoPresente >= TEMPO_PARA_ATIVAR) {
+          mudarEstado("instrucoes");
+          primeiroMomentoComMao = null; // Reseta o filtro
+        }
+      }
+    } else {
+      // Se a mão desaparece começa o timer de novo
+      if (estadoInteracao === "esperando") {
+        primeiroMomentoComMao = null;
+      }
+
+      // Se a pessoa acabou as conexões volta ao estado de espera
+      if (estadoInteracao === "jogando" && (Date.now() - ultimoMomentoComMao > TEMPO_TIMEOUT)) {
+        mudarEstado("esperando");
+      }
+    }
+//
+
+
+
+    if (maoDetetada && estadoInteracao === "jogando") {// para a nova intro
     if (results.landmarks && results.landmarks.length > 0) {
       results.landmarks.forEach((pontos, i) => {
         if (i < 2) {
@@ -356,7 +463,9 @@ window.draw = function () {
             const sobreEste = estaSobre(el, c.x, c.y);
             if (sobreEste) sobreQualquerPalavra = true;
 
-            if (c.gesto === "escolhe" && sobreEste && !c.escolhido && !c.elEmArrasto) {
+            const jaConectada = conexoesConcluidas.some(con => con.de === el || con.para === el);
+
+            if (c.gesto === "escolhe" && sobreEste && !jaConectada && !c.escolhido && !c.elEmArrasto) {
               const r = el.getBoundingClientRect();
               c.dragOffsetX = (r.left + r.width / 2) - c.x;
               c.dragOffsetY = (r.top + r.height / 2) - c.y;
@@ -370,11 +479,11 @@ window.draw = function () {
               c.escolhido = true; c.elEmArrasto = el;
             }
 
-            if (c.gesto === "conecta" && sobreEste && !c.conectar && el.dataset.naArena === "true") {
+            if (c.gesto === "conecta" && sobreEste && !c.conectar && el.dataset.naArena === "true" ) {
               c.conectar = true; c.origem = el;
             }
 
-            if (c.gesto === "lock" && sobreEste && c.conectar && el !== c.origem && !validandoHumano) {
+            if (c.gesto === "lock" && sobreEste && c.conectar && el !== c.origem && !validandoHumano && el.dataset.naArena === "true") {
               validandoHumano = true;
               validarHumano(c.origem, el);
               c.conectar = false; c.origem = null;
@@ -387,6 +496,7 @@ window.draw = function () {
         }
       });
     }
+  }
   }
 
   // ── DESENHO FORA DO LOOP DE DETECÇÃO (Para estabilidade) ──
@@ -401,7 +511,7 @@ window.draw = function () {
       desenharLinhaHumana(r1.left+r1.width/2, r1.top+r1.height/2, r2.left+r2.width/2, r2.top+r2.height/2, con.cor, true);
     }
   });
-
+if (estadoInteracao === "jogando") {//para a intro nova
   cursores.forEach((c, index) => {
     // Linha elástica
     if (c.conectar && c.origem) {
@@ -415,6 +525,7 @@ window.draw = function () {
       circle(c.x, c.y, 15);
     }
   });
+}
 };
 
 // ── FUNÇÃO DE ONDAS PARA LIGAÇÕES HUMANAS ───────────────────
