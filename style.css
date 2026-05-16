@@ -21,6 +21,7 @@ body {
 }
 
 /* ── Intro ── */
+/* ── Intro (Atualizado para a funcionalidade de Kiosk) ── */
 #scene-intro {
   position: absolute;
   inset: 0;
@@ -29,7 +30,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  z-index: 10;
+  background: rgba(0, 0, 0, 0.85); /* Fundo escuro para isolar as instruções quando reaparecer */
+  z-index: 150; /* Aumentado para ficar ACIMA do canvas-overlay que tem 100 */
+  transition: opacity 0.5s ease; /* Transição suave para sumir/aparecer */
+  pointer-events: none; /* Não bloqueia interações por trás se necessário */
 }
 
 .intro-line {
@@ -41,8 +45,9 @@ body {
   padding: 0 2rem;
   max-width: 600px;
   line-height: 1.7;
-  transition: opacity 0.8s ease;
+  transition: opacity 0.5s ease; /* Ajustado para bater certo com o JavaScript */
 }
+
 .intro-line.visible {
   opacity: 1;
 }
