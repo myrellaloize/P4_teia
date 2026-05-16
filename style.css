@@ -20,8 +20,7 @@ body {
   user-select: none;
 }
 
-/* ── Intro ── */
-/* ── Intro (Atualizado para a funcionalidade de Kiosk) ── */
+
 #scene-intro {
   position: absolute;
   inset: 0;
@@ -30,22 +29,24 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  background: rgba(0, 0, 0, 0.85); /* Fundo escuro para isolar as instruções quando reaparecer */
-  z-index: 150; /* Aumentado para ficar ACIMA do canvas-overlay que tem 100 */
-  transition: opacity 0.5s ease; /* Transição suave para sumir/aparecer */
-  pointer-events: none; /* Não bloqueia interações por trás se necessário */
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 150; 
+  transition: opacity 0.5s ease; 
+  pointer-events: none; 
 }
 
 .intro-line {
-  font-size: 20px;
+  font-size: 29px;
+    font-weight: 200;
+  font-family: 'Metropolis', sans-serif;
   color: #fff;
   opacity: 0;
   letter-spacing: 0.01em;
   text-align: center;
-  padding: 0 2rem;
-  max-width: 600px;
-  line-height: 1.7;
-  transition: opacity 0.5s ease; /* Ajustado para bater certo com o JavaScript */
+  padding: 0 1.5rem;
+  max-width: 650px;
+  line-height: 1.2;
+  transition: opacity 0.5s ease; 
 }
 
 .intro-line.visible {
@@ -87,7 +88,7 @@ body {
 
 
 .sidebar-word {
-  font-family: 'Zilla Slab', serif;
+  font-family: 'Metropolis', sans-serif;
   font-weight: 600;
 font-size: clamp(28px, 3.5vh, 80px);
   color: rgba(255, 255, 255, 0.8);

@@ -505,7 +505,7 @@ window.draw = function () {
     let r2 = con.para.getBoundingClientRect();
     if (con.tipo === "maquina") {
       stroke(con.cor[0], con.cor[1], con.cor[2], 150);
-      strokeWeight(1.5);
+      strokeWeight(2.5);
       line(r1.left + r1.width/2, r1.top + r1.height/2, r2.left + r2.width/2, r2.top + r2.height/2);
     } else {
       desenharLinhaHumana(r1.left+r1.width/2, r1.top+r1.height/2, r2.left+r2.width/2, r2.top+r2.height/2, con.cor, true);
