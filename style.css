@@ -20,31 +20,60 @@ body {
   user-select: none;
 }
 
+/* ── Ecrã de Espera Inicial (Idle) ── */
+#scene-idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 20; /* Fica por cima do scene-intro */
+  transition: opacity 0.8s ease;
+}
+
+.idle-text {
+  font-size: 32px;
+  font-weight: 200;
+  font-family: 'Metropolis', sans-serif; /* Igual à tua fonte original */
+  color: #fff;
+  letter-spacing: 0.02em;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.5; transform: scale(0.98); }
+}
+
 
 #scene-intro {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+    
+  margin: 0 auto;         /* Centra essa "caixa" horizontalmente no ecrã */
+  
   gap: 1.5rem;
+  z-index: 10;
   background: rgba(0, 0, 0, 0.85);
-  z-index: 150; 
   transition: opacity 0.5s ease; 
   pointer-events: none; 
 }
 
 .intro-line {
   font-size: 29px;
-    font-weight: 200;
+  font-weight: 200;
   font-family: 'Metropolis', sans-serif;
   color: #fff;
   opacity: 0;
   letter-spacing: 0.01em;
-  text-align: center;
-  padding: 0 1.5rem;
-  max-width: 650px;
+  width: 600px;
+white-space: nowrap;
   line-height: 1.2;
   transition: opacity 0.5s ease; 
 }

@@ -34,7 +34,7 @@ let intervaloInstrucoes = null;
 let ultimoMomentoComMao = Date.now();
 const TEMPO_TIMEOUT = 20000; // tampo max sem a mao antes de desligar
 let primeiroMomentoComMao = null; // Guarda quando a mão apareceu pela primeira vez
-const TEMPO_PARA_ATIVAR = 5000; // tempo que a mao tem que estra no ecra para iniciar
+const TEMPO_PARA_ATIVAR = 1; // tempo que a mao tem que estra no ecra para iniciar
 
 // ── FUNÇÃO DE GERENCIAMENTO DE ESTADOS ───────────────────────────
 function mudarEstado(novoEstado) {
