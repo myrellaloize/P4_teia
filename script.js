@@ -19,25 +19,25 @@ let cursores = [
 
 let palavrasDOM = [];
 
-// Fila de temas
+// Fila única de palavras misturadas
 let palavrasNaFila = [];
 
 let ALTURA_ARENA;
 
-// ── VARIÁVEIS PARA A INTRO E ESTADOS ──
+// ── VARIÁVEIS PARA A INTRO E MÁQUINA DE ESTADOS ──
 let estadoInteracao = "esperando"; // Estados: "esperando" -> "instrucoes" -> "jogando"
-let tempoInstrucoesOrigem = 8;     
+let tempoInstrucoesOrigem = 8;     // Ajustado para 8 segundos (igual ao teu HTML)
 let tempoContagem = tempoInstrucoesOrigem;
 let intervaloInstrucoes = null;
 let ultimoMomentoComMao = Date.now();
-const TEMPO_TIMEOUT = 10000;       
+const TEMPO_TIMEOUT = 10000;       // Volta ao início após 10 segundos sem nenhuma mão
 
-// NOVO: Bloqueio para evitar que a câmara salte a introdução se a mão já lá estiver
+// Trava de segurança para o utilizador ler o aviso inicial "Mexe a mão" sem que a câmara salte logo o ecrã
 let bloqueioLeitura = true;
-setTimeout(() => { bloqueioLeitura = false; }, 2500); // Fica 2.5 segundos no ecrã inicial na primeira vez
+setTimeout(() => { bloqueioLeitura = false; }, 2500); 
 
 
-// ── FUNÇÃO DE GERENCIAMENTO DE ESTADOS ───────────────────────────
+// ── FUNÇÃO DE GERENCIAMENTO DE ESTADOS (CORREÇÃO DE SOBREPOSIÇÃO) ──
 function mudarEstado(novoEstado) {
   estadoInteracao = novoEstado;
   
@@ -46,6 +46,9 @@ function mudarEstado(novoEstado) {
   const lines = ["line1", "line2", "line3"].map(id => document.getElementById(id));
 
   if (estadoInteracao === "esperando") {
+    // Esconde a estrutura do jogo por completo para evitar que as palavras antigas fiquem visíveis por trás
+    sceneStill.style.display = "none"; 
+
     // Mostrar Ecrã "Mexe a mão"
     if (cenaIdle) {
       cenaIdle.style.display = "flex";
@@ -57,25 +60,26 @@ function mudarEstado(novoEstado) {
     sceneIntro.style.opacity = "1";
     lines.forEach(line => { if(line) line.classList.remove("visible"); });
     if (lineTimer) lineTimer.style.opacity = "0";
-    
-    sceneStill.style.display = "flex"; 
   } 
   
   else if (estadoInteracao === "instrucoes") {
-    // Esconder Ecrã "Mexe a mão"
+    // Mantém o jogo escondido para o ecrã de leitura ficar totalmente limpo
+    sceneStill.style.display = "none"; 
+
+    // Esconder Ecrã "Mexe a mão" suavemente
     if (cenaIdle) {
       cenaIdle.style.opacity = "0";
       setTimeout(() => cenaIdle.style.display = "none", 800);
     }
 
-    // Mostrar as instruções em cascata
+    // Mostrar as instruções em cascata visual
     lines.forEach((line, index) => {
       setTimeout(() => {
         if (estadoInteracao === "instrucoes" && line) line.classList.add("visible");
       }, index * 300);
     });
 
-    // Iniciar o cronómetro
+    // Iniciar o cronómetro regressivo
     tempoContagem = tempoInstrucoesOrigem;
     const campoTextoTempo = document.getElementById("tempo-restante");
     if (campoTextoTempo) campoTextoTempo.textContent = tempoContagem;
@@ -95,7 +99,10 @@ function mudarEstado(novoEstado) {
   } 
   
   else if (estadoInteracao === "jogando") {
-    // Começar a simulação
+    // Torna a estrutura do jogo visível outra vez (tudo reaparece no exato sítio onde estava)
+    sceneStill.style.display = "flex"; 
+
+    // Ocultar o ecrã preto de instruções
     sceneIntro.style.opacity = "0";
     setTimeout(() => {
       if (estadoInteracao === "jogando") sceneIntro.style.display = "none";
@@ -134,9 +141,8 @@ function doFlash(duration, callback) {
   }, duration);
 }
 
-// ── INICIALIZAÇÃO DA SIDEBAR ────────────────────────────────
+// ── INICIALIZAÇÃO DA SIDEBAR (MISTURA DE TEMAS COORDENADA) ──
 async function initSidebar() {
-  sceneStill.style.display = "flex";
   const sidebar = document.getElementById("sidebar");
   sidebar.innerHTML = "";
   palavrasDOM = [];
@@ -147,13 +153,11 @@ async function initSidebar() {
     let data = await res.json();
     let temas = data.temas || [];
     
-    // ── NOVA LÓGICA DE DISTRIBUIÇÃO (MISTURA PERFEITA) ──
     palavrasNaFila = [];
-    // Criamos uma cópia temporária das listas de palavras de cada tema
     let listasDePalavras = temas.map(t => [...t.palavras]); 
     let aindaHaPalavras = true;
 
-    // Vai tirando 1 palavra de cada tema à vez e colocando na fila única, até todas acabarem!
+    // Distribuição intercalada para misturar perfeitamente todos os temas na barra
     while (aindaHaPalavras) {
       aindaHaPalavras = false;
       for (let i = 0; i < listasDePalavras.length; i++) {
@@ -164,15 +168,17 @@ async function initSidebar() {
       }
     }
 
-    // Faz nascer as primeiras 16 palavras (agora super misturadas e com todos os temas!)
+    // Faz nascer as primeiras 16 palavras já misturadas
     for (let i = 0; i < 16; i++) spawnNovaPalavra(null);
+    
+    mudarEstado("esperando");
   } catch (e) {
     console.error("Erro a ligar ao Python:", e);
+    mudarEstado("esperando");
   }
 }
 
 function spawnNovaPalavra(referenceNode) {
-  // A fila já está misturada, por isso basta tirar a primeira da lista!
   if (palavrasNaFila.length > 0) {
     let p = palavrasNaFila.shift();
     const el = document.createElement("div");
@@ -194,6 +200,7 @@ function spawnNovaPalavra(referenceNode) {
     setTimeout(() => el.classList.add("visible"), 50);
   }
 }
+
 // ── COMUNICAÇÃO COM O BACKEND ──────────────────────────────
 async function pedirLigacoesDaMaquina() {
   let palavrasAtivas = palavrasDOM
@@ -243,7 +250,7 @@ async function validarHumano(divOrigem, divDestino) {
   }
 }
 
-// ── DETEÇÃO DE GESTOS E FÍSICA ────────────────────────────
+// ── DETEÇÃO DE GESTOS BASEADA EM DISTÂNCIA ─────────────────
 function calcularDistancia(p1, p2) {
   return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
@@ -255,9 +262,9 @@ function detectGesture(landmarks) {
   const anelar    = calcularDistancia(landmarks[16], pulso) > calcularDistancia(landmarks[14], pulso);
   const mindinho  = calcularDistancia(landmarks[20], pulso) > calcularDistancia(landmarks[18], pulso);
 
-  if (indicador && medio && anelar && mindinho)   return "lock";     
-  if (indicador && medio && !anelar && !mindinho) return "conecta";  
-  if (indicador && !medio && !anelar && !mindinho) return "escolhe"; 
+  if (indicador && medio && anelar && mindinho)   return "lock";     // ✋🏾 Mão Aberta para Trancar
+  if (indicador && medio && !anelar && !mindinho) return "conecta";  // ✌🏾 Dois Dedos para Conectar
+  if (indicador && !medio && !anelar && !mindinho) return "escolhe"; // ☝🏾 Um Dedo para Arrastar
   return "...";
 }
 
@@ -349,7 +356,7 @@ window.keyPressed = function() {
   }
 };
 
-// ── DRAW P5.JS (LOOP PRINCIPAL) ───────────────────────────
+// ── DRAW P5.JS (LOOP PRINCIPAL COORDENADO COM ESTADOS) ──
 window.draw = function () {
   clear();
 
@@ -357,32 +364,31 @@ window.draw = function () {
     const results = detector.detectForVideo(video.elt, performance.now());
     const maoDetetada = results && results.landmarks && results.landmarks.length > 0;
     
-    // ── LÓGICA DE TRANSIÇÃO COM BLOQUEIO DE LEITURA ──
+    // ── TRANSIÇÕES DE ACORDO COM A PRESENÇA DA MÃO ──
     if (maoDetetada) {
       ultimoMomentoComMao = Date.now(); 
       
-      // Só avança se a pessoa estiver à espera E o bloqueio inicial de leitura (2.5s) já tiver passado!
+      // Se detetar mão no estado de espera e a trava inicial já expirou, avança
       if (estadoInteracao === "esperando" && !bloqueioLeitura) {
         mudarEstado("instrucoes"); 
       }
     } else {
-      // Se a pessoa for embora durante 20s, o jogo volta ao aviso inicial
+      // Se ficar sem mãos durante o tempo limite (10s), regressa ao ecrã inicial de espera
       if (estadoInteracao === "jogando" && (Date.now() - ultimoMomentoComMao > TEMPO_TIMEOUT)) {
         mudarEstado("esperando");
-        // Reinicia o bloqueio de leitura para a próxima pessoa
         bloqueioLeitura = true;
         setTimeout(() => { bloqueioLeitura = false; }, 2500);
       }
     }
 
-    // ── ATUALIZAÇÃO DA FÍSICA E CACHE ──
-    if (sceneStill.style.display === "flex") {
+    // ── ATUALIZAÇÃO DA FÍSICA (APENAS DURANTE O JOGO ATIVO) ──
+    if (sceneStill.style.display === "flex" && estadoInteracao === "jogando") {
       let alguemArrasta = cursores.some(c => c.elEmArrasto !== null);
       if (!alguemArrasta) atualizarHitCache();
       organizarPalavrasNaArena();
     }
 
-    // ── INTERAÇÃO DOS CURSORES (SÓ DURANTE O JOGO) ──
+    // ── INTERAÇÃO DOS CURSORES (SÓ DURANTE O JOGO ATIVO) ──
     if (maoDetetada && estadoInteracao === "jogando" && sceneStill.style.display === "flex") {
       let sobreQualquerPalavra = false;
 
@@ -482,32 +488,37 @@ window.draw = function () {
         }
       });
     }
-  } // FIM DA LÓGICA DO DETECTOR
+  } 
 
-  // ── DESENHOS (Conexões, Linhas e Cursores) ──
-  conexoesConcluidas.forEach(con => {
-    let r1 = con.de.getBoundingClientRect();
-    let r2 = con.para.getBoundingClientRect();
-    if (con.tipo === "maquina") {
-      stroke(con.cor[0], con.cor[1], con.cor[2], 150);
-      strokeWeight(2.5);
-      line(r1.left + r1.width/2, r1.top + r1.height/2, r2.left + r2.width/2, r2.top + r2.height/2);
-    } else {
-      desenharLinhaHumana(r1.left+r1.width/2, r1.top+r1.height/2, r2.left+r2.width/2, r2.top+r2.height/2, con.cor, true);
-    }
-  });
-
-  if (estadoInteracao === "jogando" && sceneStill.style.display === "flex") {
-    cursores.forEach((c, index) => {
-      if (c.conectar && c.origem) {
-        let r = c.origem.getBoundingClientRect();
-        desenharLinhaHumana(r.left + r.width/2, r.top + r.height/2, c.x, c.y, [255, 0, 150], false);
+  // ── SÓ EXECUTA OS DESENHOS NO CANVAS SE ESTIVER DE FACTO NO ESTADO DE JOGO ──
+  if (estadoInteracao === "jogando") {
+    
+    // 1. Conexões concluídas
+    conexoesConcluidas.forEach(con => {
+      let r1 = con.de.getBoundingClientRect();
+      let r2 = con.para.getBoundingClientRect();
+      if (con.tipo === "maquina") {
+        stroke(con.cor[0], con.cor[1], con.cor[2], 150);
+        strokeWeight(2.5);
+        line(r1.left + r1.width/2, r1.top + r1.height/2, r2.left + r2.width/2, r2.top + r2.height/2);
+      } else {
+        desenharLinhaHumana(r1.left+r1.width/2, r1.top+r1.height/2, r2.left+r2.width/2, r2.top+r2.height/2, con.cor, true);
       }
-      noStroke();
-      fill(index === 0 ? [0, 255, 255] : [255, 255, 0]);
-      circle(c.x, c.y, 15);
     });
-  }
+
+    // 2. Linhas elásticas ativas e ponteiros circulares
+    if (sceneStill.style.display === "flex") {
+      cursores.forEach((c, index) => {
+        if (c.conectar && c.origem) {
+          let r = c.origem.getBoundingClientRect();
+          desenharLinhaHumana(r.left + r.width/2, r.top + r.height/2, c.x, c.y, [255, 0, 150], false);
+        }
+        noStroke();
+        fill(index === 0 ? [0, 255, 255] : [255, 255, 0]);
+        circle(c.x, c.y, 15);
+      });
+    }
+  } 
 };
 
 // ── FUNÇÃO DE ONDAS PARA LIGAÇÕES HUMANAS ───────────────────
