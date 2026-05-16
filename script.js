@@ -1,6 +1,6 @@
 import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "https://p4-teia.onrender.com";
 
 const sceneIntro = document.getElementById("scene-intro");
 const sceneStill = document.getElementById("scene-still");
