@@ -20,8 +20,6 @@ let cursores = [
 let palavrasDOM = [];
 
 // Fila de temas
-let temas = [];
-let temaIndex = 0;
 let palavrasNaFila = [];
 
 let ALTURA_ARENA;
@@ -147,27 +145,34 @@ async function initSidebar() {
   try {
     let res = await fetch(`${API_URL}/palavras`);
     let data = await res.json();
-    temas = data.temas || [];
-    if (temas.length > 0) palavrasNaFila = [...temas[0].palavras];
-    for (let i = 0; i < 16; i++) spawnNovaPalavra(null);
+    let temas = data.temas || [];
     
-    mudarEstado("esperando");
+    // ── NOVA LÓGICA DE DISTRIBUIÇÃO (MISTURA PERFEITA) ──
+    palavrasNaFila = [];
+    // Criamos uma cópia temporária das listas de palavras de cada tema
+    let listasDePalavras = temas.map(t => [...t.palavras]); 
+    let aindaHaPalavras = true;
+
+    // Vai tirando 1 palavra de cada tema à vez e colocando na fila única, até todas acabarem!
+    while (aindaHaPalavras) {
+      aindaHaPalavras = false;
+      for (let i = 0; i < listasDePalavras.length; i++) {
+        if (listasDePalavras[i].length > 0) {
+          palavrasNaFila.push(listasDePalavras[i].shift());
+          aindaHaPalavras = true;
+        }
+      }
+    }
+
+    // Faz nascer as primeiras 16 palavras (agora super misturadas e com todos os temas!)
+    for (let i = 0; i < 16; i++) spawnNovaPalavra(null);
   } catch (e) {
     console.error("Erro a ligar ao Python:", e);
-    mudarEstado("esperando");
   }
 }
 
 function spawnNovaPalavra(referenceNode) {
-  if (palavrasNaFila.length === 0) {
-    temaIndex++;
-    if (temaIndex < temas.length) {
-      palavrasNaFila = [...temas[temaIndex].palavras];
-    } else {
-      return;
-    }
-  }
-
+  // A fila já está misturada, por isso basta tirar a primeira da lista!
   if (palavrasNaFila.length > 0) {
     let p = palavrasNaFila.shift();
     const el = document.createElement("div");
@@ -189,7 +194,6 @@ function spawnNovaPalavra(referenceNode) {
     setTimeout(() => el.classList.add("visible"), 50);
   }
 }
-
 // ── COMUNICAÇÃO COM O BACKEND ──────────────────────────────
 async function pedirLigacoesDaMaquina() {
   let palavrasAtivas = palavrasDOM
