@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from nltk.corpus import wordnet as wn
 import schemas
 
-# ── CINTO DE SEGURANÇA DO NLTK PARA O RENDER ──
+# ──PARA FUNCIONAR NO RENDER──
 nltk_data_dir = "/opt/render/nltk_data"
 if not os.path.exists(nltk_data_dir):
     os.makedirs(nltk_data_dir, exist_ok=True)
@@ -15,7 +15,7 @@ nltk.download('wordnet', download_dir=nltk_data_dir, quiet=True)
 nltk.download('omw-1.4', download_dir=nltk_data_dir, quiet=True)
 # ───────────────────────────────────────────────
 
-# 1. Carrega o json
+# Carrega o json
 with open("palavras.json", "r", encoding="utf-8") as f:
     dados = json.load(f)
 
@@ -24,7 +24,7 @@ PALAVRAS_FLAT = []
 for tema in dados.get("temas", []):
     PALAVRAS_FLAT.extend(tema.get("palavras", []))
 
-# novo nome do dicionário de ligações
+#  dicionário de ligações
 GABARITO = dados.get("gabarito", [])
 
 app = FastAPI(title="Teia de Palavras API")
