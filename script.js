@@ -4,116 +4,107 @@ const API_URL = "https://p4-teia.onrender.com";
 
 const sceneIntro = document.getElementById("scene-intro");
 const sceneStill = document.getElementById("scene-still");
-const flashEl    = document.getElementById("flash");
+const flashEl = document.getElementById("flash");
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 let video, detector;
 let conexoesConcluidas = [];
 let validandoHumano = false;
 
-// ── CURSORES DAS MÃOS (MULTIPLAYER) ──
+// Cursores para duas mãos 
 let cursores = [
   { x: 0, y: 0, gesto: "", elEmArrasto: null, dragOffsetX: 0, dragOffsetY: 0, placeholder: null, escolhido: false, conectar: false, origem: null },
   { x: 0, y: 0, gesto: "", elEmArrasto: null, dragOffsetX: 0, dragOffsetY: 0, placeholder: null, escolhido: false, conectar: false, origem: null }
 ];
 
 let palavrasDOM = [];
-
-// Fila única de palavras misturadas
 let palavrasNaFila = [];
-
 let ALTURA_ARENA;
 
-// ── VARIÁVEIS PARA A INTRO E MÁQUINA DE ESTADOS ──
-let estadoInteracao = "esperando"; // Estados: "esperando" -> "instrucoes" -> "jogando"
-let tempoInstrucoesOrigem = 8;     // Ajustado para 8 segundos (igual ao teu HTML)
+let estadoInteracao = "esperando"; // estados - esperando -> instrucoes -> jogando
+let tempoInstrucoesOrigem = 8;
 let tempoContagem = tempoInstrucoesOrigem;
 let intervaloInstrucoes = null;
 let ultimoMomentoComMao = Date.now();
-const TEMPO_TIMEOUT = 10000;       // Volta ao início após 10 segundos sem nenhuma mão
+const TEMPO_TIMEOUT = 15000;       // Volta ao início após 10 segundos sem nenhuma mão
 
-// Trava de segurança para o utilizador ler o aviso inicial "Mexe a mão" sem que a câmara salte logo o ecrã
+// Trava para nao saltar instruçoes
 let bloqueioLeitura = true;
-setTimeout(() => { bloqueioLeitura = false; }, 2500); 
+setTimeout(() => { bloqueioLeitura = false; }, 2500);
 
 
-// ── FUNÇÃO DE GERENCIAMENTO DE ESTADOS (CORREÇÃO DE SOBREPOSIÇÃO) ──
+//Função gerenciamento de estados
 function mudarEstado(novoEstado) {
   estadoInteracao = novoEstado;
-  
+
   const cenaIdle = document.getElementById("scene-idle");
   const lineTimer = document.getElementById("line-timer");
   const lines = ["line1", "line2", "line3"].map(id => document.getElementById(id));
 
   if (estadoInteracao === "esperando") {
-    // Esconde a estrutura do jogo por completo para evitar que as palavras antigas fiquem visíveis por trás
-    sceneStill.style.display = "none"; 
+    sceneStill.style.display = "none"; //esconde a estrutura da interação
 
-    // Mostrar Ecrã "Mexe a mão"
+    // mostra --> mexe a mao 
     if (cenaIdle) {
       cenaIdle.style.display = "flex";
       setTimeout(() => cenaIdle.style.opacity = "1", 50);
     }
-    
-    // Preparar fundo de instruções escondidas
+
     sceneIntro.style.display = "flex";
     sceneIntro.style.opacity = "1";
-    lines.forEach(line => { if(line) line.classList.remove("visible"); });
+    lines.forEach(line => { if (line) line.classList.remove("visible"); });
     if (lineTimer) lineTimer.style.opacity = "0";
-  } 
-  
-  else if (estadoInteracao === "instrucoes") {
-    // Mantém o jogo escondido para o ecrã de leitura ficar totalmente limpo
-    sceneStill.style.display = "none"; 
+  }
 
-    // Esconder Ecrã "Mexe a mão" suavemente
-    if (cenaIdle) {
+  else if (estadoInteracao === "instrucoes") {
+    sceneStill.style.display = "none"; //esconde a estrutura da interação
+
+    if (cenaIdle) { //esconde mexea mao
       cenaIdle.style.opacity = "0";
       setTimeout(() => cenaIdle.style.display = "none", 800);
     }
 
-    // Mostrar as instruções em cascata visual
+    // mostrar as instruções 
     lines.forEach((line, index) => {
       setTimeout(() => {
         if (estadoInteracao === "instrucoes" && line) line.classList.add("visible");
       }, index * 300);
     });
 
-    // Iniciar o cronómetro regressivo
+    // cronometro
     tempoContagem = tempoInstrucoesOrigem;
     const campoTextoTempo = document.getElementById("tempo-restante");
     if (campoTextoTempo) campoTextoTempo.textContent = tempoContagem;
-    
+
     if (lineTimer) lineTimer.style.opacity = "1";
 
     clearInterval(intervaloInstrucoes);
     intervaloInstrucoes = setInterval(() => {
       tempoContagem--;
       if (campoTextoTempo) campoTextoTempo.textContent = tempoContagem;
-      
+
       if (tempoContagem <= 0) {
         clearInterval(intervaloInstrucoes);
         mudarEstado("jogando");
       }
     }, 1000);
-  } 
-  
-  else if (estadoInteracao === "jogando") {
-    // Torna a estrutura do jogo visível outra vez (tudo reaparece no exato sítio onde estava)
-    sceneStill.style.display = "flex"; 
+  }
 
-    // Ocultar o ecrã preto de instruções
+  else if (estadoInteracao === "jogando") {
+
+    sceneStill.style.display = "flex"; //estrutura da interação visível 
+
     sceneIntro.style.opacity = "0";
     setTimeout(() => {
       if (estadoInteracao === "jogando") sceneIntro.style.display = "none";
     }, 500);
-    
+
     doFlash(180);
-    ultimoMomentoComMao = Date.now(); 
+    ultimoMomentoComMao = Date.now();
   }
 }
 
-// ── CACHE DE POSIÇÕES PARA DETEÇÃO ESTÁVEL ─────────────────
+//posiçoes para estabilidade de detecção
 let hitCache = new Map();
 
 function atualizarHitCache() {
@@ -141,7 +132,7 @@ function doFlash(duration, callback) {
   }, duration);
 }
 
-// ── INICIALIZAÇÃO DA SIDEBAR (MISTURA DE TEMAS COORDENADA) ──
+// ________SideBar__________________________
 async function initSidebar() {
   const sidebar = document.getElementById("sidebar");
   sidebar.innerHTML = "";
@@ -152,12 +143,12 @@ async function initSidebar() {
     let res = await fetch(`${API_URL}/palavras`);
     let data = await res.json();
     let temas = data.temas || [];
-    
+
     palavrasNaFila = [];
-    let listasDePalavras = temas.map(t => [...t.palavras]); 
+    let listasDePalavras = temas.map(t => [...t.palavras]);
     let aindaHaPalavras = true;
 
-    // Distribuição intercalada para misturar perfeitamente todos os temas na barra
+    // distribuicao intercalada para misturar odos os temas na barra
     while (aindaHaPalavras) {
       aindaHaPalavras = false;
       for (let i = 0; i < listasDePalavras.length; i++) {
@@ -168,16 +159,15 @@ async function initSidebar() {
       }
     }
 
-    // Faz nascer as primeiras 16 palavras já misturadas
+    // desenha palavras
     for (let i = 0; i < 16; i++) spawnNovaPalavra(null);
-    
+
     mudarEstado("esperando");
   } catch (e) {
     console.error("Erro a ligar ao Python:", e);
     mudarEstado("esperando");
   }
 }
-
 function spawnNovaPalavra(referenceNode) {
   if (palavrasNaFila.length > 0) {
     let p = palavrasNaFila.shift();
@@ -201,7 +191,7 @@ function spawnNovaPalavra(referenceNode) {
   }
 }
 
-// ── COMUNICAÇÃO COM O BACKEND ──────────────────────────────
+//_________Ligação backend_________________________________
 async function pedirLigacoesDaMaquina() {
   let palavrasAtivas = palavrasDOM
     .filter(el => el.dataset.naArena === "true")
@@ -221,7 +211,7 @@ async function pedirLigacoesDaMaquina() {
     let data = await res.json();
     conexoesConcluidas = conexoesConcluidas.filter(c => c.tipo !== "maquina");
     data.ligacoes.forEach(lig => {
-      let divDe   = palavrasDOM.find(p => p.dataset.id === lig.de);
+      let divDe = palavrasDOM.find(p => p.dataset.id === lig.de);
       let divPara = palavrasDOM.find(p => p.dataset.id === lig.para);
       if (divDe && divPara) {
         conexoesConcluidas.push({ de: divDe, para: divPara, tipo: "maquina", cor: [0, 200, 255] });
@@ -250,21 +240,21 @@ async function validarHumano(divOrigem, divDestino) {
   }
 }
 
-// ── DETEÇÃO DE GESTOS BASEADA EM DISTÂNCIA ─────────────────
+// ── Deteçaão gestos_______
 function calcularDistancia(p1, p2) {
   return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
 function detectGesture(landmarks) {
-  const pulso     = landmarks[0];
-  const indicador = calcularDistancia(landmarks[8],  pulso) > calcularDistancia(landmarks[6],  pulso);
-  const medio     = calcularDistancia(landmarks[12], pulso) > calcularDistancia(landmarks[10], pulso);
-  const anelar    = calcularDistancia(landmarks[16], pulso) > calcularDistancia(landmarks[14], pulso);
-  const mindinho  = calcularDistancia(landmarks[20], pulso) > calcularDistancia(landmarks[18], pulso);
+  const pulso = landmarks[0];
+  const indicador = calcularDistancia(landmarks[8], pulso) > calcularDistancia(landmarks[6], pulso);
+  const medio = calcularDistancia(landmarks[12], pulso) > calcularDistancia(landmarks[10], pulso);
+  const anelar = calcularDistancia(landmarks[16], pulso) > calcularDistancia(landmarks[14], pulso);
+  const mindinho = calcularDistancia(landmarks[20], pulso) > calcularDistancia(landmarks[18], pulso);
 
-  if (indicador && medio && anelar && mindinho)   return "lock";     // ✋🏾 Mão Aberta para Trancar
-  if (indicador && medio && !anelar && !mindinho) return "conecta";  // ✌🏾 Dois Dedos para Conectar
-  if (indicador && !medio && !anelar && !mindinho) return "escolhe"; // ☝🏾 Um Dedo para Arrastar
+  if (indicador && medio && anelar && mindinho) return "lock";     // ✋🏾 Mão aberta para trancar
+  if (indicador && medio && !anelar && !mindinho) return "conecta";  // ✌🏾 Dois dedos para conectar
+  if (indicador && !medio && !anelar && !mindinho) return "escolhe"; // ☝🏾 Um dedo para arrastar
   return "...";
 }
 
@@ -275,27 +265,27 @@ function organizarPalavrasNaArena() {
     let el1 = ativas[i];
     if (el1.x === undefined) {
       el1.x = parseFloat(el1.style.left) || windowWidth / 2;
-      el1.y = parseFloat(el1.style.top)  || ALTURA_ARENA / 2;
+      el1.y = parseFloat(el1.style.top) || ALTURA_ARENA / 2;
     }
 
     for (let j = i + 1; j < ativas.length; j++) {
       let el2 = ativas[j];
       if (el2.x === undefined) {
         el2.x = parseFloat(el2.style.left) || windowWidth / 2;
-        el2.y = parseFloat(el2.style.top)  || ALTURA_ARENA / 2;
+        el2.y = parseFloat(el2.style.top) || ALTURA_ARENA / 2;
       }
 
       let dx = el2.x - el1.x;
       let dy = el2.y - el1.y;
       if (dx === 0 && dy === 0) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; }
 
-      let minDx = (el1.offsetWidth  + el2.offsetWidth)  / 2 + 20;
+      let minDx = (el1.offsetWidth + el2.offsetWidth) / 2 + 20;
       let minDy = (el1.offsetHeight + el2.offsetHeight) / 2 + 20;
 
       if (Math.abs(dx) < minDx && Math.abs(dy) < minDy) {
         let overlapX = minDx - Math.abs(dx);
         let overlapY = minDy - Math.abs(dy);
-        const forca  = 0.1;
+        const forca = 0.1;
         if (overlapX < overlapY) {
           const d = dx > 0 ? 1 : -1;
           el1.x -= overlapX * forca * d;
@@ -308,19 +298,19 @@ function organizarPalavrasNaArena() {
       }
     }
 
-    const mW = el1.offsetWidth  / 2;
+    const mW = el1.offsetWidth / 2;
     const mH = el1.offsetHeight / 2;
     if (el1.x < mW + 20) el1.x = mW + 20;
-    if (el1.x > windowWidth  - mW - 20) el1.x = windowWidth  - mW - 20;
+    if (el1.x > windowWidth - mW - 20) el1.x = windowWidth - mW - 20;
     if (el1.y < mH + 20) el1.y = mH + 20;
     if (el1.y > ALTURA_ARENA - mH - 20) el1.y = ALTURA_ARENA - mH - 20;
 
     el1.style.left = el1.x + "px";
-    el1.style.top  = el1.y + "px";
+    el1.style.top = el1.y + "px";
   }
 }
 
-// ── SETUP P5.JS ───────────────────────────────────────────
+// ── Setup p5.js───────────────────────
 window.setup = async function () {
   const canvas = createCanvas(windowWidth, windowHeight);
   canvas.parent("canvas-overlay");
@@ -341,7 +331,7 @@ window.setup = async function () {
   });
 
   ALTURA_ARENA = windowHeight * 0.8;
-  initSidebar(); 
+  initSidebar();
 };
 
 window.windowResized = function () {
@@ -349,31 +339,30 @@ window.windowResized = function () {
   ALTURA_ARENA = windowHeight * 0.8;
 };
 
-window.keyPressed = function() {
+window.keyPressed = function () {
   if (key === 'f' || key === 'F') {
     let fs = fullscreen();
     fullscreen(!fs);
   }
 };
 
-// ── DRAW P5.JS (LOOP PRINCIPAL COORDENADO COM ESTADOS) ──
+// ── Draw p5.js ──-------------
 window.draw = function () {
   clear();
 
   if (detector && video.elt.readyState === 4) {
     const results = detector.detectForVideo(video.elt, performance.now());
     const maoDetetada = results && results.landmarks && results.landmarks.length > 0;
-    
-    // ── TRANSIÇÕES DE ACORDO COM A PRESENÇA DA MÃO ──
+
     if (maoDetetada) {
-      ultimoMomentoComMao = Date.now(); 
-      
+      ultimoMomentoComMao = Date.now();
+
       // Se detetar mão no estado de espera e a trava inicial já expirou, avança
       if (estadoInteracao === "esperando" && !bloqueioLeitura) {
-        mudarEstado("instrucoes"); 
+        mudarEstado("instrucoes");
       }
     } else {
-      // Se ficar sem mãos durante o tempo limite (10s), regressa ao ecrã inicial de espera
+      // Se ficar sem mãos durante o tempo limite, regressa ao ecrã inicial de espera
       if (estadoInteracao === "jogando" && (Date.now() - ultimoMomentoComMao > TEMPO_TIMEOUT)) {
         mudarEstado("esperando");
         bloqueioLeitura = true;
@@ -381,14 +370,14 @@ window.draw = function () {
       }
     }
 
-    // ── ATUALIZAÇÃO DA FÍSICA (APENAS DURANTE O JOGO ATIVO) ──
+    //Fisica
     if (sceneStill.style.display === "flex" && estadoInteracao === "jogando") {
       let alguemArrasta = cursores.some(c => c.elEmArrasto !== null);
       if (!alguemArrasta) atualizarHitCache();
       organizarPalavrasNaArena();
     }
 
-    // ── INTERAÇÃO DOS CURSORES (SÓ DURANTE O JOGO ATIVO) ──
+    // Intrecao cursores
     if (maoDetetada && estadoInteracao === "jogando" && sceneStill.style.display === "flex") {
       let sobreQualquerPalavra = false;
 
@@ -399,22 +388,22 @@ window.draw = function () {
           c.y = lerp(c.y, pontos[8].y * height, 0.3);
           c.gesto = detectGesture(pontos);
 
-          // ── PARTE A: ARRASTO INDIVIDUAL ──
+          //arrasto palavra
           if (c.elEmArrasto) {
             if (c.gesto === "escolhe") {
               const novoX = c.x + c.dragOffsetX;
-              let novoY = c.y + c.dragOffsetY; 
+              let novoY = c.y + c.dragOffsetY;
 
               if (c.elEmArrasto.dataset.saiu === "true") {
-                  const margemH = c.elEmArrasto.offsetHeight / 2;
-                  if (novoY > ALTURA_ARENA - margemH - 10) {
-                      novoY = ALTURA_ARENA - margemH - 10;
-                  }
+                const margemH = c.elEmArrasto.offsetHeight / 2;
+                if (novoY > ALTURA_ARENA - margemH - 10) {
+                  novoY = ALTURA_ARENA - margemH - 10;
+                }
               }
 
               c.elEmArrasto.x = novoX;
               c.elEmArrasto.y = novoY;
-              
+
               c.elEmArrasto.style.position = "fixed";
               c.elEmArrasto.style.margin = "0";
               c.elEmArrasto.style.transform = "translate(-50%, -50%)";
@@ -447,11 +436,11 @@ window.draw = function () {
             }
           }
 
-          // ── PARTE B: LIGAÇÕES ENTRE PALAVRAS ──
+          //Ligaçoes entre palavras
           palavrasDOM.forEach(el => {
             const ocupada = cursores.some(curs => curs !== c && curs.elEmArrasto === el);
             if (ocupada) return;
-            
+
             const sobreEste = estaSobre(el, c.x, c.y);
             if (sobreEste) sobreQualquerPalavra = true;
 
@@ -464,14 +453,14 @@ window.draw = function () {
               c.placeholder = document.createElement("div");
               c.placeholder.className = "sidebar-word";
               c.placeholder.style.visibility = "hidden";
-              c.placeholder.style.width = r.width + "px"; 
+              c.placeholder.style.width = r.width + "px";
               c.placeholder.style.height = r.height + "px";
               el.parentNode.insertBefore(c.placeholder, el);
               el.isDragging = true; el.classList.add("dragging");
               c.escolhido = true; c.elEmArrasto = el;
             }
 
-            if (c.gesto === "conecta" && sobreEste && !c.conectar && el.dataset.naArena === "true" ) {
+            if (c.gesto === "conecta" && sobreEste && !c.conectar && el.dataset.naArena === "true") {
               c.conectar = true; c.origem = el;
             }
 
@@ -488,40 +477,40 @@ window.draw = function () {
         }
       });
     }
-  } 
+  }
 
-  // ── SÓ EXECUTA OS DESENHOS NO CANVAS SE ESTIVER DE FACTO NO ESTADO DE JOGO ──
+  //só executa no estado jogo
   if (estadoInteracao === "jogando") {
-    
-    // 1. Conexões concluídas
+
+    // conexões concluídas
     conexoesConcluidas.forEach(con => {
       let r1 = con.de.getBoundingClientRect();
       let r2 = con.para.getBoundingClientRect();
       if (con.tipo === "maquina") {
         stroke(con.cor[0], con.cor[1], con.cor[2], 150);
         strokeWeight(2.5);
-        line(r1.left + r1.width/2, r1.top + r1.height/2, r2.left + r2.width/2, r2.top + r2.height/2);
+        line(r1.left + r1.width / 2, r1.top + r1.height / 2, r2.left + r2.width / 2, r2.top + r2.height / 2);
       } else {
-        desenharLinhaHumana(r1.left+r1.width/2, r1.top+r1.height/2, r2.left+r2.width/2, r2.top+r2.height/2, con.cor, true);
+        desenharLinhaHumana(r1.left + r1.width / 2, r1.top + r1.height / 2, r2.left + r2.width / 2, r2.top + r2.height / 2, con.cor, true);
       }
     });
 
-    // 2. Linhas elásticas ativas e ponteiros circulares
+    // linhas ativas e ponteiros
     if (sceneStill.style.display === "flex") {
       cursores.forEach((c, index) => {
         if (c.conectar && c.origem) {
           let r = c.origem.getBoundingClientRect();
-          desenharLinhaHumana(r.left + r.width/2, r.top + r.height/2, c.x, c.y, [255, 0, 150], false);
+          desenharLinhaHumana(r.left + r.width / 2, r.top + r.height / 2, c.x, c.y, [255, 0, 150], false);
         }
         noStroke();
         fill(index === 0 ? [0, 255, 255] : [255, 255, 0]);
         circle(c.x, c.y, 15);
       });
     }
-  } 
+  }
 };
 
-// ── FUNÇÃO DE ONDAS PARA LIGAÇÕES HUMANAS ───────────────────
+// ── Função ondas ligaçao humana ───────────────────
 function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
   let d = dist(x1, y1, x2, y2);
   let angulo = atan2(y2 - y1, x2 - x1);
@@ -538,7 +527,7 @@ function desenharLinhaHumana(x1, y1, x2, y2, corBase, mostrarOndas) {
 
     let coresOndas = [
       [255, 255, 255], [0, 255, 255], [150, 0, 255], [255, 0, 200],
-      [255, 255, 255], [0, 255, 255], [150, 0, 255], [255, 0, 200]      
+      [255, 255, 255], [0, 255, 255], [150, 0, 255], [255, 0, 200]
     ];
 
     for (let n = 0; n < coresOndas.length; n++) {
