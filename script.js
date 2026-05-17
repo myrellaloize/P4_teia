@@ -340,13 +340,13 @@ window.setup = async function () {
     numHands: 2 // MULTIPLAYER ATIVADO
   });
 
-  ALTURA_ARENA = windowHeight * 0.75;
+  ALTURA_ARENA = windowHeight * 0.8;
   initSidebar(); 
 };
 
 window.windowResized = function () {
   resizeCanvas(windowWidth, windowHeight);
-  ALTURA_ARENA = windowHeight * 0.75;
+  ALTURA_ARENA = windowHeight * 0.8;
 };
 
 window.keyPressed = function() {

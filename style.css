@@ -95,7 +95,7 @@ padding-left: 49px;  /* AUMENTA AQUI para empurrar a 2ª linha mais para a direi
 }
 
 
-#sidebar {
+/* #sidebar {
   width: 100%;
   height: 25vh;
   min-height: 150px;
@@ -110,8 +110,24 @@ padding-left: 49px;  /* AUMENTA AQUI para empurrar a 2ª linha mais para a direi
   gap: 1rem 2rem;
   padding: 1.5rem;
   overflow: hidden;
+} */
+ 
+#sidebar {
+  width: 100%;
+  height: 20vh; /* Reduzido de 25vh para 20vh */
+  min-height: 120px; /* Diminuí ligeiramente para garantir que não força o erro em ecrãs menores */
+  border-top: 1px solid rgba(255, 255, 255, 0.4); 
+  
+  background: rgba(10, 10, 10, 0.9);
+  display: flex;
+  flex-direction: row; 
+  flex-wrap: wrap;     
+  justify-content: center;
+  align-content: center; /* ESTA É A MAGIA: Centraliza as palavras na vertical! */
+  gap: 1rem 2rem;
+  padding: 1.5rem;
+  overflow: hidden;
 }
-
 
 .sidebar-word {
   font-family: 'Metropolis', sans-serif;
